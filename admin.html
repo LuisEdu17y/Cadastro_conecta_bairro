@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - Conecta Bairro</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-dark bg-dark shadow-sm mb-4">
+        <div class="container d-flex justify-content-between align-items-center" style="max-width: 600px;">
+            <a class="navbar-brand fw-bold m-0" href="#">
+                <i class="bi bi-gear-fill text-warning"></i> Admin | Conecta Bairro
+            </a>
+            <button onclick="window.location.href='index.html'" class="btn btn-sm btn-outline-light">
+                Ver App
+            </button>
+        </div>
+    </nav>
+
+    <div class="container" style="max-width: 600px;">
+        
+        <div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+            <h4 class="fw-bold mb-4">
+                <i class="bi bi-plus-circle-fill text-primary me-2"></i>Cadastrar Novo Evento
+            </h4>
+            
+            <div id="alerta-sucesso" class="alert alert-success d-none" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i> Evento salvo com sucesso!
+            </div>
+
+            <form id="formCadastro">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Título do Evento</label>
+                    <input type="text" class="form-control" id="titulo" placeholder="Ex: Roda de Capoeira" required>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Modalidade</label>
+                        <select class="form-select" id="modalidade" required>
+                            <option value="" disabled selected>Escolha...</option>
+                            <option value="Futebol">Futebol</option>
+                            <option value="Zumba">Zumba</option>
+                            <option value="Capoeira">Capoeira</option>
+                            <option value="Outros">Outros</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Cor de Destaque</label>
+                        <select class="form-select" id="cor" required>
+                            <option value="blue">Azul (Padrão)</option>
+                            <option value="orange">Laranja</option>
+                            <option value="pink">Rosa</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Data e Horário</label>
+                    <input type="text" class="form-control" id="data" placeholder="Ex: Sábado, 09:00" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold fs-5 rounded-pill shadow-sm">
+                    <i class="bi bi-floppy-fill me-2"></i> Salvar Evento
+                </button>
+            </form>
+        </div>
+
+        <div class="card border-0 shadow-sm rounded-4 p-4 mb-5">
+            <h4 class="fw-bold mb-4">
+                <i class="bi bi-list-ul text-primary me-2"></i>Eventos Cadastrados
+            </h4>
+            
+            <div class="table-responsive">
+                <table class="table align-middle table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Título</th>
+                            <th>Modalidade</th>
+                            <th>Data</th>
+                            <th class="text-end">Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-eventos">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+        
+    </div> <script src="admin.js"></script>
+
+</body>
+</html>

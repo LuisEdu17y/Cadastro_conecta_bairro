@@ -1,0 +1,33 @@
+/* Fundo exclusivo da tela de login */
+.login-bg {
+    background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+    height: 100vh;
+}
+
+/* Estilos do Card de Login */
+.login-card {
+    max-width: 420px;
+    width: 100%;
+    border: none;
+    border-radius: 1.5rem;
+}
+
+/* Botão do WhatsApp customizado */
+.btn-whatsapp {
+    background-color: #25D366;
+    color: white;
+    border: none;
+}
+
+.btn-whatsapp:hover {
+    background-color: #128C7E;
+    color: white;
+}
+
+/* Efeito visual da linha com o "OU" no meio */
+.divider:after, .divider:before {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #dee2e6;
+}
