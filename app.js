@@ -55,6 +55,10 @@ function renderizarLista(lista) {
                         <span class="badge bg-light ${textClass} fw-bold px-2 py-1">
                             <i class="bi ${iconClass} me-1"></i> ${evento.modalidade}
                         </span>
+                        
+                        <button class="btn btn-link text-danger p-0" onclick="deletarEvento(${evento.id})">
+                            <i class="bi bi-trash3"></i>
+                        </button>
                     </div>
                     <h5 class="card-title fw-bold text-dark mb-1">${evento.titulo}</h5>
                     <p class="card-text text-muted small mb-0">
@@ -98,3 +102,67 @@ botoesFiltro.forEach(botao => {
 
 // Faz o app carregar os eventos assim que abre
 carregarEventos();
+
+
+// Captura o formulário
+const formNovoEvento = document.getElementById('form-novo-evento');
+
+// Quando o formulário for enviado (submit)
+formNovoEvento.addEventListener('submit', async function(event) {
+    event.preventDefault(); // Evita que a página recarregue
+
+    const botaoSalvar = formNovoEvento.querySelector('button[type="submit"]');
+    botaoSalvar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando...';
+    botaoSalvar.disabled = true;
+
+    // Pegando os valores do HTML
+    const modalidadeEscolhida = document.getElementById('categoria-evento').value;
+    const dataEscolhida = document.getElementById('data-evento').value;
+    const horaEscolhida = document.getElementById('hora-evento').value;
+    
+    // Definindo a cor baseada na modalidade (como no seu código original)
+    let corEscolhida = 'blue'; // Padrão
+    if (modalidadeEscolhida === 'Zumba') corEscolhida = 'pink';
+    if (modalidadeEscolhida === 'Capoeira') corEscolhida = 'orange';
+
+    // Formatando a data para ficar bonitinha: "DD/MM/AAAA às HH:MM"
+    const dataFormatada = dataEscolhida.split('-').reverse().join('/') + ' às ' + horaEscolhida;
+
+    // Montando o pacote com os nomes exatos que o seu Python espera
+    const novoEvento = {
+        titulo: document.getElementById('nome-evento').value,
+        modalidade: modalidadeEscolhida,
+        cor: corEscolhida,
+        data: dataFormatada
+    };
+
+    try {
+        const resposta = await fetch('https://api-sara-social.onrender.com/eventos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(novoEvento)
+        });
+
+        if (resposta.ok) {
+            // Fecha a janelinha do Bootstrap
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoEvento'));
+            modal.hide();
+            
+            // Limpa o que foi digitado no formulário
+            formNovoEvento.reset();
+
+            // Atualiza a lista na tela na mesma hora!
+            carregarEventos(); 
+            
+            alert('Evento criado com sucesso!');
+        } else {
+            alert('Ops! Erro ao salvar o evento no banco de dados.');
+        }
+    } catch (erro) {
+        console.error('Erro na requisição:', erro);
+        alert('Erro ao tentar conectar com a API.');
+    } finally {
+        botaoSalvar.innerHTML = 'Salvar Evento';
+        botaoSalvar.disabled = false;
+    }
+});
