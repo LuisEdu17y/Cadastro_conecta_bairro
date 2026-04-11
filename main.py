@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException # ADICIONADO HTTPException AQUI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
@@ -10,7 +10,12 @@ class Evento(SQLModel, table=True):
     cor: str
     data: str
 
-# Configurando o SQLite (ele vai criar um arquivo banco_de_dados.db na sua pasta)
+# Modelo para receber os dados de login (Não precisa de table=True se não for salvar no banco ainda)
+class LoginRequest(SQLModel):
+    email: str
+    senha: str
+
+# Configurando o SQLite
 sqlite_file_name = "banco_de_dados.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 engine = create_engine(sqlite_url, echo=True)
@@ -25,23 +30,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mágica para criar o banco assim que o servidor ligar
+# Criar o banco ao iniciar
 @app.on_event("startup")
 def on_startup():
     SQLModel.metadata.create_all(engine)
 
 @app.get("/")
 def home():
-    return {"mensagem": "Servidor do Conecta Bairro está online e com Banco de Dados!"}
+    return {"mensagem": "Servidor do Conecta Bairro está online!"}
 
-# Rota para LER os eventos (Agora puxa do banco!)
+# --- ROTAS DE EVENTOS ---
+
 @app.get("/eventos")
 def listar_eventos():
     with Session(engine) as session:
         eventos = session.exec(select(Evento)).all()
         return eventos
 
-# NOVA ROTA: Para CRIAR novos eventos
 @app.post("/eventos")
 def criar_evento(evento: Evento):
     with Session(engine) as session:
@@ -49,19 +54,25 @@ def criar_evento(evento: Evento):
         session.commit()
         session.refresh(evento)
         return evento
-    
-# NOVA ROTA: Para DELETAR um evento
 
 @app.delete("/eventos/{evento_id}")
 def deletar_evento(evento_id: int):
     with Session(engine) as session:
-              
         evento = session.get(Evento, evento_id)
         if not evento:
-            return{"erro": "Evento não encontrado"}
+            raise HTTPException(status_code=404, detail="Evento não encontrado")
         
         session.delete(evento)
         session.commit()
-        
         return {"mensagem": "Evento excluido com sucesso"}
-        
+
+# --- ROTA DE LOGIN ---
+
+@app.post("/login")
+def login(dados: LoginRequest):
+    # Verificação simples conforme solicitado
+    if dados.email == "admin@teste.com" and dados.senha == "123456":
+        return {"status": "sucesso", "mensagem": "Login autorizado"}
+    else:
+        # Agora o HTTPException vai funcionar porque foi importado!
+        raise HTTPException(status_code=401, detail="E-mail ou senha incorretos")
