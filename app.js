@@ -3,7 +3,7 @@
 // Variável global para guardar todos os eventos na memória do navegador
 let todosOsEventos = [];
 
-// Função que vai no Python buscar os dados (Só roda 1 vez ao abrir o app)
+// 1. Função que busca os dados no Back-end (Render)
 async function carregarEventos() {
     try {
         const resposta = await fetch('https://api-sara-social.onrender.com/eventos');
@@ -21,12 +21,11 @@ async function carregarEventos() {
     }
 }
 
-// Função que desenha os cartões na tela (Recebe a lista já filtrada ou completa)
+// 2. Função que desenha os cartões na tela
 function renderizarLista(lista) {
     const container = document.getElementById('lista-eventos');
     container.innerHTML = ''; // Limpa a tela
 
-    // Se não tiver nenhum evento para aquele filtro, mostra um aviso
     if (lista.length === 0) {
         container.innerHTML = `
             <div class="text-center text-muted my-4 py-4 bg-white rounded-4 shadow-sm border">
@@ -37,13 +36,13 @@ function renderizarLista(lista) {
         return;
     }
 
-    // Desenha os cartões
     lista.forEach(evento => {
+        // Define cores dinâmicas
         let borderClass = evento.cor === 'pink' ? 'border-danger' : (evento.cor === 'orange' ? 'border-warning' : 'border-primary');
         let textClass = evento.cor === 'pink' ? 'text-danger' : (evento.cor === 'orange' ? 'text-warning' : 'text-primary');
         
-        // Um ícone dinâmico diferente para cada modalidade
-        let iconClass = 'bi-people'; // Padrão
+        // Define ícones dinâmicos
+        let iconClass = 'bi-people'; 
         if (evento.modalidade === 'Futebol') iconClass = 'bi-trophy';
         if (evento.modalidade === 'Zumba') iconClass = 'bi-music-note-beamed';
         if (evento.modalidade === 'Capoeira') iconClass = 'bi-person-arms-up';
@@ -71,26 +70,21 @@ function renderizarLista(lista) {
     });
 }
 
-// A mágica dos Botões de Filtro
+// 3. Lógica dos Botões de Filtro
 const botoesFiltro = document.querySelectorAll('.btn-filtro');
 
 botoesFiltro.forEach(botao => {
     botao.addEventListener('click', function() {
-        
-        // Tira a cor sólida de TODOS os botões
         botoesFiltro.forEach(b => {
             b.classList.remove('btn-primary');
             b.classList.add('btn-outline-primary');
         });
 
-        // Coloca a cor sólida APENAS no botão clicado
         this.classList.remove('btn-outline-primary');
         this.classList.add('btn-primary');
 
-        // Descobre qual palavra está no botão clicado
         const modalidadeEscolhida = this.getAttribute('data-filtro');
 
-        // Filtra a lista
         if (modalidadeEscolhida === 'Todos') {
             renderizarLista(todosOsEventos); 
         } else {
@@ -100,35 +94,26 @@ botoesFiltro.forEach(botao => {
     });
 });
 
-// Faz o app carregar os eventos assim que abre
-carregarEventos();
-
-
-// Captura o formulário
+// 4. Lógica para Criar Novo Evento (POST)
 const formNovoEvento = document.getElementById('form-novo-evento');
 
-// Quando o formulário for enviado (submit)
 formNovoEvento.addEventListener('submit', async function(event) {
-    event.preventDefault(); // Evita que a página recarregue
+    event.preventDefault();
 
     const botaoSalvar = formNovoEvento.querySelector('button[type="submit"]');
     botaoSalvar.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Salvando...';
     botaoSalvar.disabled = true;
 
-    // Pegando os valores do HTML
     const modalidadeEscolhida = document.getElementById('categoria-evento').value;
     const dataEscolhida = document.getElementById('data-evento').value;
     const horaEscolhida = document.getElementById('hora-evento').value;
     
-    // Definindo a cor baseada na modalidade (como no seu código original)
-    let corEscolhida = 'blue'; // Padrão
+    let corEscolhida = 'blue';
     if (modalidadeEscolhida === 'Zumba') corEscolhida = 'pink';
     if (modalidadeEscolhida === 'Capoeira') corEscolhida = 'orange';
 
-    // Formatando a data para ficar bonitinha: "DD/MM/AAAA às HH:MM"
     const dataFormatada = dataEscolhida.split('-').reverse().join('/') + ' às ' + horaEscolhida;
 
-    // Montando o pacote com os nomes exatos que o seu Python espera
     const novoEvento = {
         titulo: document.getElementById('nome-evento').value,
         modalidade: modalidadeEscolhida,
@@ -144,25 +129,43 @@ formNovoEvento.addEventListener('submit', async function(event) {
         });
 
         if (resposta.ok) {
-            // Fecha a janelinha do Bootstrap
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoEvento'));
             modal.hide();
-            
-            // Limpa o que foi digitado no formulário
             formNovoEvento.reset();
-
-            // Atualiza a lista na tela na mesma hora!
             carregarEventos(); 
-            
             alert('Evento criado com sucesso!');
         } else {
-            alert('Ops! Erro ao salvar o evento no banco de dados.');
+            alert('Erro ao salvar o evento.');
         }
     } catch (erro) {
-        console.error('Erro na requisição:', erro);
-        alert('Erro ao tentar conectar com a API.');
+        console.error('Erro:', erro);
+        alert('Erro ao conectar com a API.');
     } finally {
         botaoSalvar.innerHTML = 'Salvar Evento';
         botaoSalvar.disabled = false;
     }
 });
+
+// 5. Função para Deletar Evento (DELETE)
+async function deletarEvento(id) {
+    if (!confirm("Tem certeza que deseja excluir este evento?")) return;
+
+    try {
+        const resposta = await fetch(`https://api-sara-social.onrender.com/eventos/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (resposta.ok) {
+            alert("Evento excluído!");
+            carregarEventos(); 
+        } else {
+            alert("Erro ao excluir o evento.");
+        }
+    } catch (erro) {
+        console.error("Erro ao deletar:", erro);
+        alert("Erro ao conectar com o servidor.");
+    }
+}
+
+// Inicialização
+carregarEventos();
