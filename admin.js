@@ -3,7 +3,7 @@
 // Função para carregar os eventos na tabela do Admin
 async function carregarEventosAdmin() {
     try {
-        const resposta = await fetch('https://api-sara-social.onrender.com');
+        const resposta = await fetch('https://api-sara-social.onrender.com/eventos');
         const eventos = await resposta.json();
         
         const tabela = document.getElementById('tabela-eventos');
@@ -34,7 +34,7 @@ async function carregarEventosAdmin() {
 async function deletarEvento(id) {
     if (confirm("Tem certeza que deseja apagar este evento?")) {
         try {
-            const resposta = await fetch(`https://api-sara-social.onrender.com${id}`, {
+            const resposta = await fetch(`https://api-sara-social.onrender.com/eventos/${id}`, {
                 method: 'DELETE'
             });
 
@@ -61,7 +61,7 @@ document.getElementById('formCadastro').addEventListener('submit', async functio
     };
 
     try {
-        const resposta = await fetch('https://api-sara-social.onrender.com', {
+        const resposta = await fetch('https://api-sara-social.onrender.com/eventos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(novoEvento)
