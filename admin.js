@@ -3,7 +3,7 @@
 // Função para carregar os eventos na tabela do Admin
 async function carregarEventosAdmin() {
     try {
-        const resposta = await fetch('http://localhost:8000/eventos');
+        const resposta = await fetch('https://api-sara-social.onrender.com');
         const eventos = await resposta.json();
         
         const tabela = document.getElementById('tabela-eventos');
@@ -34,7 +34,7 @@ async function carregarEventosAdmin() {
 async function deletarEvento(id) {
     if (confirm("Tem certeza que deseja apagar este evento?")) {
         try {
-            const resposta = await fetch(`http://localhost:8000/eventos/${id}`, {
+            const resposta = await fetch(`https://api-sara-social.onrender.com${id}`, {
                 method: 'DELETE'
             });
 
