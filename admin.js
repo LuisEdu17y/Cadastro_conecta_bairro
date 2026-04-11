@@ -61,7 +61,7 @@ document.getElementById('formCadastro').addEventListener('submit', async functio
     };
 
     try {
-        const resposta = await fetch('http://localhost:8000/eventos', {
+        const resposta = await fetch('https://api-sara-social.onrender.com', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(novoEvento)

@@ -6,7 +6,7 @@ let todosOsEventos = [];
 // Função que vai no Python buscar os dados (Só roda 1 vez ao abrir o app)
 async function carregarEventos() {
     try {
-        const resposta = await fetch('http://localhost:8000/eventos');
+        const resposta = await fetch('https://api-sara-social.onrender.com');
         todosOsEventos = await resposta.json();
         
         // Assim que chegar, renderiza mostrando "Todos"
