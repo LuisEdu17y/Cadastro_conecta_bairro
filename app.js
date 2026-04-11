@@ -1,7 +1,19 @@
-// app.js
+// ==========================================
+// TRANCA DE SEGURANÇA
+// ==========================================
+const estaLogado = localStorage.getItem('usuarioLogado');
+
+// Se ele NÃO estiver logado, expulsa de volta para o login
+if (!estaLogado) {
+    window.location.href = 'login.html';
+}
+// ==========================================
 
 // Variável global para guardar todos os eventos na memória do navegador
 let todosOsEventos = [];
+
+
+// app.js
 
 // 1. Função que busca os dados no Back-end (Render)
 async function carregarEventos() {
