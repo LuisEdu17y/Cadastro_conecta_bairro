@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin — Conecta Bairro</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+
+    <style>
+        body { background: var(--ink-50); }
+
+        /* Topbar mobile */
+        .mobile-topbar {
+            display: none;
+            background: var(--ink-900);
+            color: #fff;
+            padding: 1rem 1.2rem;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        @media (max-width: 900px) {
+            .mobile-topbar { display: flex; }
+            .admin-shell { display: block; }
+            .admin-main { padding: 1.2rem; }
+        }
+        .mobile-topbar h1 { color: #fff; margin: 0; font-size: 1.1rem; }
+        .mobile-topbar .menu-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        /* Mostra/esconde seções */
+        .secao { display: none; }
+        .secao.is-active { display: block; }
+
+        /* Bar de mini-gráfico */
+        .bar-list { display: flex; flex-direction: column; gap: 0.6rem; }
+        .bar-item {
+            display: grid;
+            grid-template-columns: 110px 1fr 50px;
+            align-items: center;
+            gap: 0.7rem;
+            font-size: 0.88rem;
+        }
+        .bar-track {
+            background: var(--ink-100);
+            height: 10px;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--brand-500), var(--brand-700));
+            border-radius: 999px;
+            transition: width 0.6s ease;
+        }
+        .bar-item .num {
+            font-weight: 700;
+            color: var(--brand-700);
+            text-align: right;
+        }
+
+        /* Form de evento dentro do modal */
+        .field-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.7rem;
+        }
+        @media (max-width: 480px) {
+            .field-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Tabela responsiva: cards no mobile */
+        @media (max-width: 700px) {
+            .cb-table thead { display: none; }
+            .cb-table, .cb-table tbody, .cb-table tr, .cb-table td {
+                display: block;
+                width: 100%;
+            }
+            .cb-table tr {
+                padding: 0.8rem;
+                margin-bottom: 0.5rem;
+                background: #fff;
+                border-radius: var(--radius-md);
+                box-shadow: var(--shadow-sm);
+            }
+            .cb-table td {
+                border: none;
+                padding: 0.3rem 0;
+                display: flex;
+                justify-content: space-between;
+                gap: 1rem;
+            }
+            .cb-table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                color: var(--ink-500);
+                font-size: 0.75rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Topbar mobile (visível só em telas pequenas) -->
+    <header class="mobile-topbar">
+        <h1><span style="color: var(--accent-500);">●</span> Admin</h1>
+        <button class="menu-btn" id="btn-menu-mobile"><i class="bi bi-list"></i></button>
+    </header>
+
+    <div class="admin-shell">
+        <!-- Sidebar -->
+        <aside class="admin-sidebar" id="sidebar">
+            <h1><span class="dot"></span> Conecta Bairro</h1>
+            <nav>
+                <button class="nav-link is-active" data-secao="dashboard">
+                    <i class="bi bi-grid-1x2-fill"></i> Dashboard
+                </button>
+                <button class="nav-link" data-secao="eventos">
+                    <i class="bi bi-calendar-event"></i> Eventos
+                </button>
+                <button class="nav-link" data-secao="usuarios">
+                    <i class="bi bi-people-fill"></i> Usuários
+                </button>
+                <a href="/app" class="nav-link">
+                    <i class="bi bi-eye"></i> Ver como morador
+                </a>
+                <button class="nav-link sair" id="btn-sair">
+                    <i class="bi bi-box-arrow-right"></i> Sair
+                </button>
+            </nav>
+        </aside>
+
+        <main class="admin-main">
+            <header class="admin-header">
+                <div>
+                    <span class="eyebrow" id="secao-eyebrow">Visão geral</span>
+                    <h2 id="secao-titulo">Dashboard</h2>
+                </div>
+                <span class="user-tag">
+                    <span class="avatar" id="admin-avatar" style="width: 26px; height: 26px; font-size: 0.75rem;">A</span>
+                    <span id="admin-nome">Admin</span>
+                </span>
+            </header>
+
+            <!-- ================ DASHBOARD ================ -->
+            <section id="sec-dashboard" class="secao is-active">
+                <div class="kpi-grid">
+                    <div class="kpi-card" style="--accent-color: var(--brand-200);">
+                        <div class="ic" style="background: var(--brand-100); color: var(--brand-700);"><i class="bi bi-people-fill"></i></div>
+                        <div class="lbl">Usuários cadastrados</div>
+                        <div class="val" id="kpi-usuarios">—</div>
+                    </div>
+                    <div class="kpi-card" style="--accent-color: #ffedd5;">
+                        <div class="ic" style="background: #ffedd5; color: var(--accent-600);"><i class="bi bi-calendar-check-fill"></i></div>
+                        <div class="lbl">Eventos ativos</div>
+                        <div class="val" id="kpi-eventos">—</div>
+                    </div>
+                    <div class="kpi-card" style="--accent-color: #fee2e2;">
+                        <div class="ic" style="background: #fee2e2; color: #be123c;"><i class="bi bi-bookmark-heart-fill"></i></div>
+                        <div class="lbl">Inscrições totais</div>
+                        <div class="val" id="kpi-inscricoes">—</div>
+                    </div>
+                    <div class="kpi-card" style="--accent-color: #e0e7ff;">
+                        <div class="ic" style="background: #e0e7ff; color: #4338ca;"><i class="bi bi-shield-lock-fill"></i></div>
+                        <div class="lbl">Administradores</div>
+                        <div class="val" id="kpi-admins">—</div>
+                    </div>
+                </div>
+
+                <div class="cb-card mb-3">
+                    <div class="section-title">
+                        <h3>Eventos por categoria</h3>
+                    </div>
+                    <div class="bar-list" id="grafico-modalidades">
+                        <div class="cb-spinner"></div>
+                    </div>
+                </div>
+
+                <div class="cb-card">
+                    <div class="section-title">
+                        <h3>Top eventos por inscrições</h3>
+                    </div>
+                    <div id="top-eventos">
+                        <div class="cb-spinner"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ================ EVENTOS ================ -->
+            <section id="sec-eventos" class="secao">
+                <div class="section-title">
+                    <h3>Gerenciar eventos</h3>
+                    <button class="btn-cb btn-cb--primary" id="btn-novo-evento">
+                        <i class="bi bi-plus-lg"></i> Novo evento
+                    </button>
+                </div>
+
+                <div id="lista-eventos-admin">
+                    <div class="cb-spinner"></div>
+                </div>
+            </section>
+
+            <!-- ================ USUÁRIOS ================ -->
+            <section id="sec-usuarios" class="secao">
+                <div class="section-title">
+                    <h3>Gerenciar usuários</h3>
+                </div>
+
+                <div id="lista-usuarios">
+                    <div class="cb-spinner"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script>
+        // ----------------------------------------------------------
+        // Guarda admin
+        // ----------------------------------------------------------
+        const usuario = exigirLogin('admin');
+        if (!usuario) { throw new Error('not admin'); }
+
+        document.getElementById('admin-avatar').textContent = iniciais(usuario.nome);
+        document.getElementById('admin-nome').textContent = usuario.nome.split(' ')[0];
+
+        // ----------------------------------------------------------
+        // Navegação entre seções
+        // ----------------------------------------------------------
+        const titulos = {
+            dashboard: { eyebrow: 'Visão geral', titulo: 'Dashboard' },
+            eventos:   { eyebrow: 'CRUD', titulo: 'Gerenciar Eventos' },
+            usuarios:  { eyebrow: 'Comunidade', titulo: 'Gerenciar Usuários' },
+        };
+        function trocarSecao(nome) {
+            document.querySelectorAll('.secao').forEach(s => s.classList.remove('is-active'));
+            document.getElementById(`sec-${nome}`).classList.add('is-active');
+            document.querySelectorAll('.admin-sidebar .nav-link[data-secao]').forEach(n => {
+                n.classList.toggle('is-active', n.dataset.secao === nome);
+            });
+            const t = titulos[nome];
+            document.getElementById('secao-eyebrow').textContent = t.eyebrow;
+            document.getElementById('secao-titulo').textContent = t.titulo;
+            if (nome === 'dashboard') carregarDashboard();
+            if (nome === 'eventos')   carregarEventosAdmin();
+            if (nome === 'usuarios')  carregarUsuarios();
+        }
+        document.querySelectorAll('.admin-sidebar .nav-link[data-secao]').forEach(n => {
+            n.addEventListener('click', () => trocarSecao(n.dataset.secao));
+        });
+
+        // Botão mobile
+        document.getElementById('btn-menu-mobile')?.addEventListener('click', () => {
+            const s = document.getElementById('sidebar');
+            s.style.display = s.style.display === 'block' ? 'none' : 'block';
+            s.style.position = 'fixed';
+            s.style.top = '0';
+            s.style.left = '0';
+            s.style.zIndex = '999';
+            s.style.width = '280px';
+        });
+
+        // Sair
+        document.getElementById('btn-sair').addEventListener('click', async () => {
+            const ok = await confirmar({
+                titulo: 'Sair?', mensagem: 'Você precisará entrar novamente.',
+                textoOk: 'Sair',
+            });
+            if (ok) sair();
+        });
+
+        function escapeHTML(s) {
+            if (s == null) return '';
+            return String(s)
+                .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        // ==========================================================
+        // DASHBOARD
+        // ==========================================================
+        async function carregarDashboard() {
+            try {
+                const d = await API.get('/admin/estatisticas');
+
+                document.getElementById('kpi-usuarios').textContent   = d.total_usuarios;
+                document.getElementById('kpi-eventos').textContent    = d.total_eventos;
+                document.getElementById('kpi-inscricoes').textContent = d.total_inscricoes;
+                document.getElementById('kpi-admins').textContent     = d.total_admins;
+
+                // Gráfico de barras por modalidade
+                const max = Math.max(1, ...d.eventos_por_modalidade.map(m => m.quantidade));
+                const gm = document.getElementById('grafico-modalidades');
+                if (d.eventos_por_modalidade.length === 0) {
+                    gm.innerHTML = '<p class="text-muted-soft">Ainda não há eventos cadastrados.</p>';
+                } else {
+                    gm.innerHTML = d.eventos_por_modalidade.map(m => `
+                        <div class="bar-item">
+                            <div>${escapeHTML(m.modalidade)}</div>
+                            <div class="bar-track"><div class="bar-fill" style="width: ${(m.quantidade/max)*100}%"></div></div>
+                            <div class="num">${m.quantidade}</div>
+                        </div>
+                    `).join('');
+                }
+
+                // Top eventos
+                const te = document.getElementById('top-eventos');
+                if (d.top_eventos.length === 0) {
+                    te.innerHTML = '<p class="text-muted-soft">Nenhum evento ainda.</p>';
+                } else {
+                    te.innerHTML = `
+                        <table class="cb-table">
+                            <thead>
+                                <tr><th>Evento</th><th>Categoria</th><th style="text-align:right;">Inscritos</th></tr>
+                            </thead>
+                            <tbody>
+                                ${d.top_eventos.map(t => `
+                                    <tr>
+                                        <td data-label="Evento" style="font-weight:600">${escapeHTML(t.titulo)}</td>
+                                        <td data-label="Categoria"><span class="badge-cat badge-cat--${t.modalidade.toLowerCase()}">${escapeHTML(t.modalidade)}</span></td>
+                                        <td data-label="Inscritos" style="text-align:right; font-weight:700;">${t.total_inscritos}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+            } catch (err) {
+                if (err.status === 401) { sair(true); return; }
+                toast('Erro ao carregar estatísticas', 'error');
+            }
+        }
+
+        // ==========================================================
+        // EVENTOS — CRUD
+        // ==========================================================
+        async function carregarEventosAdmin() {
+            const cont = document.getElementById('lista-eventos-admin');
+            cont.innerHTML = '<div class="cb-spinner"></div>';
+            try {
+                const eventos = await API.get('/eventos');
+                if (eventos.length === 0) {
+                    cont.innerHTML = `
+                        <div class="empty-state cb-card">
+                            <div class="ic"><i class="bi bi-calendar-plus"></i></div>
+                            <h4>Sem eventos ainda</h4>
+                            <p>Clique em "Novo evento" para começar.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                cont.innerHTML = `
+                    <table class="cb-table">
+                        <thead>
+                            <tr>
+                                <th>Título</th>
+                                <th>Categoria</th>
+                                <th>Data</th>
+                                <th>Local</th>
+                                <th>Inscritos</th>
+                                <th style="text-align:right;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${eventos.map(ev => `
+                                <tr>
+                                    <td data-label="Título" style="font-weight:600">${escapeHTML(ev.titulo)}</td>
+                                    <td data-label="Categoria">
+                                        <span class="badge-cat badge-cat--${ev.modalidade.toLowerCase()}">${escapeHTML(ev.modalidade)}</span>
+                                    </td>
+                                    <td data-label="Data" class="text-muted-soft">${escapeHTML(ev.data)}</td>
+                                    <td data-label="Local" class="text-muted-soft">${escapeHTML(ev.local)}</td>
+                                    <td data-label="Inscritos">
+                                        <strong>${ev.total_inscritos}</strong>${ev.vagas > 0 ? `<span class="text-muted-soft"> / ${ev.vagas}</span>` : ''}
+                                    </td>
+                                    <td data-label="Ações" style="text-align:right;">
+                                        <button class="btn-cb btn-cb--sm btn-cb--soft" onclick="verInscritos(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g, "\\'")}')">
+                                            <i class="bi bi-people"></i>
+                                        </button>
+                                        <button class="btn-cb btn-cb--sm btn-cb--ghost" onclick="editarEvento(${ev.id})">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn-cb btn-cb--sm btn-cb--danger" onclick="deletarEvento(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g, "\\'")}')">
+                                            <i class="bi bi-trash3"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                if (err.status === 401) { sair(true); return; }
+                toast('Erro ao carregar eventos', 'error');
+            }
+        }
+
+        function abrirFormEvento(evento = null) {
+            const editando = !!evento;
+            const bd = document.createElement('div');
+            bd.className = 'cb-modal-backdrop';
+            bd.innerHTML = `
+                <div class="cb-modal">
+                    <h3>${editando ? 'Editar evento' : 'Novo evento'}</h3>
+                    <form id="form-evento">
+                        <div class="field">
+                            <label>Título</label>
+                            <input id="ev-titulo" required value="${evento ? escapeHTML(evento.titulo) : ''}" placeholder="Ex: Roda de Capoeira">
+                        </div>
+                        <div class="field">
+                            <label>Descrição (opcional)</label>
+                            <textarea id="ev-descricao" rows="2" placeholder="Detalhes do evento...">${evento ? escapeHTML(evento.descricao || '') : ''}</textarea>
+                        </div>
+                        <div class="field-grid">
+                            <div class="field">
+                                <label>Modalidade</label>
+                                <select id="ev-modalidade" required>
+                                    <option value="">Escolha...</option>
+                                    <option value="Futebol"  ${evento && evento.modalidade==='Futebol'  ? 'selected' : ''}>Futebol</option>
+                                    <option value="Zumba"    ${evento && evento.modalidade==='Zumba'    ? 'selected' : ''}>Zumba</option>
+                                    <option value="Capoeira" ${evento && evento.modalidade==='Capoeira' ? 'selected' : ''}>Capoeira</option>
+                                    <option value="Outros"   ${evento && evento.modalidade==='Outros'   ? 'selected' : ''}>Outros</option>
+                                </select>
+                            </div>
+                            <div class="field">
+                                <label>Cor de destaque</label>
+                                <select id="ev-cor">
+                                    <option value="blue"   ${evento && evento.cor==='blue'   ? 'selected' : ''}>Verde (padrão)</option>
+                                    <option value="orange" ${evento && evento.cor==='orange' ? 'selected' : ''}>Laranja</option>
+                                    <option value="pink"   ${evento && evento.cor==='pink'   ? 'selected' : ''}>Rosa</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="field-grid">
+                            <div class="field">
+                                <label>Data e horário</label>
+                                <input id="ev-data" required value="${evento ? escapeHTML(evento.data) : ''}" placeholder="Ex: Sábado, 09:00">
+                            </div>
+                            <div class="field">
+                                <label>Vagas (0 = ilimitadas)</label>
+                                <input id="ev-vagas" type="number" min="0" value="${evento ? evento.vagas : 30}">
+                            </div>
+                        </div>
+                        <div class="field">
+                            <label>Local</label>
+                            <input id="ev-local" value="${evento ? escapeHTML(evento.local) : 'Quadra Poliesportiva'}">
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button type="button" class="btn-cb btn-cb--soft btn-cb--block" data-close>Cancelar</button>
+                            <button type="submit" class="btn-cb btn-cb--primary btn-cb--block" id="btn-salvar-ev">
+                                ${editando ? 'Salvar alterações' : 'Criar evento'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(bd);
+
+            bd.addEventListener('click', (e) => {
+                if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
+            });
+
+            document.getElementById('form-evento').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const payload = {
+                    titulo:     document.getElementById('ev-titulo').value.trim(),
+                    descricao:  document.getElementById('ev-descricao').value.trim() || null,
+                    modalidade: document.getElementById('ev-modalidade').value,
+                    cor:        document.getElementById('ev-cor').value,
+                    data:       document.getElementById('ev-data').value.trim(),
+                    vagas:      parseInt(document.getElementById('ev-vagas').value) || 0,
+                    local:      document.getElementById('ev-local').value.trim() || 'Quadra Poliesportiva',
+                };
+                const btn = document.getElementById('btn-salvar-ev');
+                btn.disabled = true;
+                try {
+                    if (editando) {
+                        await API.put(`/eventos/${evento.id}`, payload);
+                        toast('Evento atualizado', 'success');
+                    } else {
+                        await API.post('/eventos', payload);
+                        toast('Evento criado!', 'success');
+                    }
+                    bd.remove();
+                    carregarEventosAdmin();
+                } catch (err) {
+                    toast(err.message || 'Erro ao salvar', 'error');
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        window.editarEvento = async function(id) {
+            try {
+                const ev = await API.get(`/eventos/${id}`);
+                abrirFormEvento(ev);
+            } catch (err) {
+                toast('Erro ao carregar evento', 'error');
+            }
+        };
+
+        window.deletarEvento = async function(id, titulo) {
+            const ok = await confirmar({
+                titulo: 'Excluir evento?',
+                mensagem: `"${titulo}" será removido junto com todas as inscrições. Esta ação não pode ser desfeita.`,
+                textoOk: 'Sim, excluir',
+                perigoso: true,
+            });
+            if (!ok) return;
+            try {
+                await API.delete(`/eventos/${id}`);
+                toast('Evento excluído', 'info');
+                carregarEventosAdmin();
+            } catch (err) {
+                toast(err.message || 'Erro', 'error');
+            }
+        };
+
+        window.verInscritos = async function(id, titulo) {
+            try {
+                const lista = await API.get(`/admin/eventos/${id}/inscritos`);
+                const bd = document.createElement('div');
+                bd.className = 'cb-modal-backdrop';
+                const corpo = lista.length === 0
+                    ? '<p class="text-muted-soft">Nenhum inscrito ainda.</p>'
+                    : `<table class="cb-table">
+                        <thead><tr><th>Nome</th><th>E-mail</th><th>Bairro</th></tr></thead>
+                        <tbody>
+                            ${lista.map(u => `
+                                <tr>
+                                    <td data-label="Nome">${escapeHTML(u.nome)}</td>
+                                    <td data-label="E-mail" class="text-muted-soft">${escapeHTML(u.email)}</td>
+                                    <td data-label="Bairro" class="text-muted-soft">${escapeHTML(u.bairro || '—')}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                       </table>`;
+                bd.innerHTML = `
+                    <div class="cb-modal" style="max-width: 640px;">
+                        <h3>${escapeHTML(titulo)}</h3>
+                        <p class="text-muted-soft" style="margin-top: -0.3rem;">${lista.length} ${lista.length === 1 ? 'inscrito' : 'inscritos'}</p>
+                        <div style="margin-top: 1rem;">${corpo}</div>
+                        <button class="btn-cb btn-cb--soft btn-cb--block mt-2" data-close>Fechar</button>
+                    </div>
+                `;
+                document.body.appendChild(bd);
+                bd.addEventListener('click', (e) => {
+                    if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
+                });
+            } catch (err) {
+                toast('Erro ao carregar inscritos', 'error');
+            }
+        };
+
+        document.getElementById('btn-novo-evento').addEventListener('click', () => abrirFormEvento());
+
+        // ==========================================================
+        // USUÁRIOS
+        // ==========================================================
+        async function carregarUsuarios() {
+            const cont = document.getElementById('lista-usuarios');
+            cont.innerHTML = '<div class="cb-spinner"></div>';
+            try {
+                const usuarios = await API.get('/admin/usuarios');
+                if (usuarios.length === 0) {
+                    cont.innerHTML = '<p class="text-muted-soft">Nenhum usuário cadastrado.</p>';
+                    return;
+                }
+                cont.innerHTML = `
+                    <table class="cb-table">
+                        <thead>
+                            <tr>
+                                <th>Nome</th><th>E-mail</th><th>Bairro</th><th>Função</th><th>Status</th>
+                                <th style="text-align:right;">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${usuarios.map(u => {
+                                const ehVoce = u.id === usuario.id;
+                                return `
+                                <tr>
+                                    <td data-label="Nome" style="font-weight:600;">
+                                        ${escapeHTML(u.nome)} ${ehVoce ? '<span class="text-muted-soft" style="font-weight:400;">(você)</span>' : ''}
+                                    </td>
+                                    <td data-label="E-mail" class="text-muted-soft">${escapeHTML(u.email)}</td>
+                                    <td data-label="Bairro" class="text-muted-soft">${escapeHTML(u.bairro || '—')}</td>
+                                    <td data-label="Função">
+                                        <span class="status-pill ${u.role === 'admin' ? 'status-pill--admin' : ''}">${u.role}</span>
+                                    </td>
+                                    <td data-label="Status">
+                                        <span class="status-pill status-pill--${u.ativo ? 'ativo' : 'inativo'}">
+                                            ${u.ativo ? 'Ativo' : 'Inativo'}
+                                        </span>
+                                    </td>
+                                    <td data-label="Ações" style="text-align:right;">
+                                        ${ehVoce ? '' : `
+                                            <button class="btn-cb btn-cb--sm btn-cb--ghost" onclick="alterarRole(${u.id}, '${u.role}')">
+                                                ${u.role === 'admin' ? 'Tornar morador' : 'Tornar admin'}
+                                            </button>
+                                            <button class="btn-cb btn-cb--sm btn-cb--soft" onclick="alterarAtivo(${u.id}, ${u.ativo})">
+                                                ${u.ativo ? 'Desativar' : 'Ativar'}
+                                            </button>
+                                            <button class="btn-cb btn-cb--sm btn-cb--danger" onclick="excluirUsuario(${u.id}, '${escapeHTML(u.nome).replace(/'/g, "\\'")}')">
+                                                <i class="bi bi-trash3"></i>
+                                            </button>
+                                        `}
+                                    </td>
+                                </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } catch (err) {
+                if (err.status === 401) { sair(true); return; }
+                toast('Erro ao carregar usuários', 'error');
+            }
+        }
+
+        window.alterarRole = async function(id, atual) {
+            const novo = atual === 'admin' ? 'morador' : 'admin';
+            const ok = await confirmar({
+                titulo: `Alterar função?`,
+                mensagem: `Este usuário passará a ser <strong>${novo}</strong>.`,
+                textoOk: 'Confirmar',
+            });
+            if (!ok) return;
+            try {
+                await API.put(`/admin/usuarios/${id}`, { role: novo });
+                toast('Função alterada', 'success');
+                carregarUsuarios();
+            } catch (err) { toast(err.message, 'error'); }
+        };
+
+        window.alterarAtivo = async function(id, ativoAtual) {
+            try {
+                await API.put(`/admin/usuarios/${id}`, { ativo: !ativoAtual });
+                toast(ativoAtual ? 'Usuário desativado' : 'Usuário reativado', 'info');
+                carregarUsuarios();
+            } catch (err) { toast(err.message, 'error'); }
+        };
+
+        window.excluirUsuario = async function(id, nome) {
+            const ok = await confirmar({
+                titulo: 'Excluir usuário?',
+                mensagem: `<strong>${nome}</strong> será removido permanentemente, junto com suas inscrições.`,
+                textoOk: 'Excluir', perigoso: true,
+            });
+            if (!ok) return;
+            try {
+                await API.delete(`/admin/usuarios/${id}`);
+                toast('Usuário excluído', 'info');
+                carregarUsuarios();
+            } catch (err) { toast(err.message, 'error'); }
+        };
+
+        // ----------------------------------------------------------
+        // Boot
+        // ----------------------------------------------------------
+        carregarDashboard();
+    </script>
+</body>
+</html>

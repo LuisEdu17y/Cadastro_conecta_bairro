@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eventos — Conecta Bairro</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+    <main class="app-mobile">
+        <!-- Cabeçalho com avatar e saudação -->
+        <header class="greet-header">
+            <div class="avatar" id="user-avatar">M</div>
+            <div class="info">
+                <p class="hello" id="hello-text">Olá,</p>
+                <p class="name" id="user-name">Carregando...</p>
+            </div>
+            <button class="logout-btn" id="btn-sair" title="Sair">
+                <i class="bi bi-box-arrow-right"></i>
+            </button>
+        </header>
+
+        <!-- Hero estatísticas -->
+        <section class="hero-card">
+            <h2>O bairro tá fervendo!</h2>
+            <p>Confira o que está acontecendo e participe.</p>
+            <div class="stats">
+                <div>
+                    <div class="big" id="stat-total">—</div>
+                    <div class="lbl">Eventos</div>
+                </div>
+                <div>
+                    <div class="big" id="stat-inscrito">—</div>
+                    <div class="lbl">Inscritos</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Abas -->
+        <div class="chip-row" id="aba-row">
+            <button class="chip is-active" data-aba="todos">Todos</button>
+            <button class="chip" data-aba="meus">
+                <i class="bi bi-bookmark-heart"></i> Meus eventos
+            </button>
+        </div>
+
+        <!-- Filtros por modalidade -->
+        <div class="chip-row" id="filtro-row">
+            <button class="chip is-active" data-filtro="Todos">Todas categorias</button>
+            <button class="chip" data-filtro="Futebol"><i class="bi bi-trophy"></i> Futebol</button>
+            <button class="chip" data-filtro="Zumba"><i class="bi bi-music-note-beamed"></i> Zumba</button>
+            <button class="chip" data-filtro="Capoeira"><i class="bi bi-person-arms-up"></i> Capoeira</button>
+            <button class="chip" data-filtro="Outros"><i class="bi bi-stars"></i> Outros</button>
+        </div>
+
+        <!-- Lista -->
+        <section id="feed">
+            <div class="cb-spinner"></div>
+        </section>
+    </main>
+
+    <!-- Navegação inferior -->
+    <nav class="bottom-nav">
+        <button class="bottom-nav__item is-active" data-aba="todos">
+            <i class="bi bi-house-door-fill"></i>
+            Início
+        </button>
+        <button class="bottom-nav__item" data-aba="meus">
+            <i class="bi bi-bookmark-heart"></i>
+            Meus
+        </button>
+        <button class="bottom-nav__item" id="btn-perfil">
+            <i class="bi bi-person"></i>
+            Perfil
+        </button>
+    </nav>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/ui.js"></script>
+    <script>
+        // ------------------------------------------------------------
+        // Guarda: precisa estar logado (qualquer role)
+        // ------------------------------------------------------------
+        const usuario = exigirLogin('qualquer');
+        if (!usuario) {
+            // exigirLogin já redireciona; abortamos
+            throw new Error('not authenticated');
+        }
+
+        // ------------------------------------------------------------
+        // Configuração inicial do header
+        // ------------------------------------------------------------
+        const primeiroNome = usuario.nome.split(' ')[0];
+        document.getElementById('user-avatar').textContent = iniciais(usuario.nome);
+        document.getElementById('user-name').textContent = primeiroNome;
+        const hora = new Date().getHours();
+        const saudacao = hora < 12 ? 'Bom dia,' : hora < 18 ? 'Boa tarde,' : 'Boa noite,';
+        document.getElementById('hello-text').textContent = saudacao;
+
+        // ------------------------------------------------------------
+        // Estado em memória
+        // ------------------------------------------------------------
+        let aba = 'todos';              // 'todos' ou 'meus'
+        let filtro = 'Todos';           // modalidade
+        let cacheTodos = [];            // último GET /eventos
+        let cacheMeus = [];             // último GET /eventos/meus
+
+        // ------------------------------------------------------------
+        // Carregar dados
+        // ------------------------------------------------------------
+        async function carregarFeed() {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<div class="cb-spinner"></div>';
+
+            try {
+                if (aba === 'todos') {
+                    cacheTodos = await API.get('/eventos');
+                } else {
+                    cacheMeus = await API.get('/eventos/meus');
+                }
+                atualizarStats();
+                renderizarFeed();
+            } catch (err) {
+                if (err.status === 401) { sair(true); return; }
+                feed.innerHTML = `
+                    <div class="empty-state">
+                        <div class="ic"><i class="bi bi-wifi-off"></i></div>
+                        <h4>Não foi possível conectar</h4>
+                        <p class="text-muted-soft">${err.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function atualizarStats() {
+            document.getElementById('stat-total').textContent = cacheTodos.length;
+            const meus = cacheMeus.length || cacheTodos.filter(e => e.inscrito).length;
+            document.getElementById('stat-inscrito').textContent = meus;
+        }
+
+        function renderizarFeed() {
+            const feed = document.getElementById('feed');
+            let lista = aba === 'todos' ? cacheTodos : cacheMeus;
+
+            if (filtro !== 'Todos') {
+                lista = lista.filter(e => e.modalidade === filtro);
+            }
+
+            if (lista.length === 0) {
+                feed.innerHTML = renderVazio();
+                return;
+            }
+
+            feed.classList.add('stagger');
+            feed.innerHTML = lista.map(renderCard).join('');
+        }
+
+        function renderVazio() {
+            if (aba === 'meus') {
+                return `
+                    <div class="empty-state">
+                        <div class="ic"><i class="bi bi-bookmark"></i></div>
+                        <h4>Você ainda não está inscrito em nada</h4>
+                        <p>Volte para "Início" e confirme presença nos eventos que te interessam.</p>
+                    </div>
+                `;
+            }
+            return `
+                <div class="empty-state">
+                    <div class="ic"><i class="bi bi-calendar-x"></i></div>
+                    <h4>Nenhum evento nessa categoria</h4>
+                    <p>Tente filtrar por outra modalidade.</p>
+                </div>
+            `;
+        }
+
+        function renderCard(ev) {
+            const cls =
+                ev.modalidade === 'Zumba'    ? 'event-card--zumba'    :
+                ev.modalidade === 'Capoeira' ? 'event-card--capoeira' :
+                ev.modalidade === 'Outros'   ? 'event-card--outros'   : '';
+
+            const catBadge =
+                ev.modalidade === 'Futebol'  ? 'badge-cat--futebol'   :
+                ev.modalidade === 'Zumba'    ? 'badge-cat--zumba'     :
+                ev.modalidade === 'Capoeira' ? 'badge-cat--capoeira'  : 'badge-cat--outros';
+
+            const ic =
+                ev.modalidade === 'Futebol'  ? 'bi-trophy'             :
+                ev.modalidade === 'Zumba'    ? 'bi-music-note-beamed'  :
+                ev.modalidade === 'Capoeira' ? 'bi-person-arms-up'     : 'bi-stars';
+
+            const cheio = ev.vagas > 0 && ev.total_inscritos >= ev.vagas;
+            const vagasTxt = ev.vagas > 0
+                ? `${ev.total_inscritos}/${ev.vagas} vagas`
+                : `${ev.total_inscritos} confirmados`;
+
+            const acaoBtn = ev.inscrito
+                ? `<button class="btn-cb btn-cb--sm btn-inscricao is-inscrito" onclick="cancelarInscricao(${ev.id})">
+                       <i class="bi bi-check2-circle"></i> Inscrito
+                   </button>`
+                : (cheio
+                    ? `<button class="btn-cb btn-cb--sm btn-cb--soft" disabled>Esgotado</button>`
+                    : `<button class="btn-cb btn-cb--sm btn-cb--primary btn-inscricao" onclick="inscrever(${ev.id})">
+                           Participar
+                       </button>`);
+
+            const descricao = ev.descricao
+                ? `<p style="font-size: 0.86rem; color: var(--ink-500); margin: 0.4rem 0 0.6rem;">${escapeHTML(ev.descricao)}</p>`
+                : '';
+
+            return `
+                <article class="event-card ${cls}">
+                    <span class="badge-cat ${catBadge}">
+                        <i class="bi ${ic}"></i> ${ev.modalidade}
+                    </span>
+                    <h3>${escapeHTML(ev.titulo)}</h3>
+                    ${descricao}
+                    <div class="meta">
+                        <div class="row"><i class="bi bi-calendar-event"></i> ${escapeHTML(ev.data)}</div>
+                        <div class="row"><i class="bi bi-geo-alt"></i> ${escapeHTML(ev.local)}</div>
+                    </div>
+                    <div class="footer-row">
+                        <span class="vagas-info ${cheio ? 'is-cheio' : ''}">
+                            <i class="bi bi-people"></i> ${vagasTxt}
+                        </span>
+                        ${acaoBtn}
+                    </div>
+                </article>
+            `;
+        }
+
+        function escapeHTML(s) {
+            if (s == null) return '';
+            return String(s)
+                .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        // ------------------------------------------------------------
+        // Ações
+        // ------------------------------------------------------------
+        window.inscrever = async function(id) {
+            try {
+                await API.post(`/eventos/${id}/inscrever`);
+                toast('Presença confirmada!', 'success');
+                await carregarFeed();
+            } catch (err) {
+                toast(err.message || 'Erro ao inscrever', 'error');
+            }
+        };
+
+        window.cancelarInscricao = async function(id) {
+            const ok = await confirmar({
+                titulo: 'Cancelar inscrição?',
+                mensagem: 'Você não estará mais confirmado neste evento.',
+                textoOk: 'Sim, cancelar',
+                textoCancelar: 'Manter',
+                perigoso: true,
+            });
+            if (!ok) return;
+            try {
+                await API.delete(`/eventos/${id}/inscrever`);
+                toast('Inscrição cancelada', 'info');
+                await carregarFeed();
+            } catch (err) {
+                toast(err.message || 'Erro', 'error');
+            }
+        };
+
+        // ------------------------------------------------------------
+        // Eventos de UI: filtros e abas
+        // ------------------------------------------------------------
+        document.querySelectorAll('#filtro-row .chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                document.querySelectorAll('#filtro-row .chip').forEach(c => c.classList.remove('is-active'));
+                chip.classList.add('is-active');
+                filtro = chip.dataset.filtro;
+                renderizarFeed();
+            });
+        });
+
+        function trocarAba(novaAba) {
+            aba = novaAba;
+            // Chip no topo
+            document.querySelectorAll('#aba-row .chip').forEach(c => {
+                c.classList.toggle('is-active', c.dataset.aba === aba);
+            });
+            // Nav inferior
+            document.querySelectorAll('.bottom-nav__item').forEach(b => {
+                if (b.dataset.aba) b.classList.toggle('is-active', b.dataset.aba === aba);
+            });
+            carregarFeed();
+        }
+
+        document.querySelectorAll('#aba-row .chip').forEach(c => {
+            c.addEventListener('click', () => trocarAba(c.dataset.aba));
+        });
+        document.querySelectorAll('.bottom-nav__item[data-aba]').forEach(b => {
+            b.addEventListener('click', () => trocarAba(b.dataset.aba));
+        });
+
+        // Sair
+        document.getElementById('btn-sair').addEventListener('click', async () => {
+            const ok = await confirmar({
+                titulo: 'Sair da conta?',
+                mensagem: 'Você vai precisar fazer login novamente.',
+                textoOk: 'Sair',
+                textoCancelar: 'Ficar',
+            });
+            if (ok) sair();
+        });
+
+        // Perfil — modal simples
+        document.getElementById('btn-perfil').addEventListener('click', () => {
+            const bd = document.createElement('div');
+            bd.className = 'cb-modal-backdrop';
+            bd.innerHTML = `
+                <div class="cb-modal">
+                    <div class="text-center mb-2">
+                        <div class="avatar" style="margin: 0 auto 0.8rem; width: 72px; height: 72px; font-size: 1.6rem;">
+                            ${iniciais(usuario.nome)}
+                        </div>
+                        <h3 style="margin-bottom: 0.2rem;">${escapeHTML(usuario.nome)}</h3>
+                        <p class="text-muted-soft" style="margin: 0;">${escapeHTML(usuario.email)}</p>
+                        ${usuario.role === 'admin' ? '<span class="status-pill status-pill--admin mt-1">Administrador</span>' : ''}
+                    </div>
+                    <div style="margin-top: 1.2rem; font-size: 0.9rem; color: var(--ink-700);">
+                        <p><strong>Bairro:</strong> ${escapeHTML(usuario.bairro || '—')}</p>
+                        <p><strong>Telefone:</strong> ${escapeHTML(usuario.telefone || '—')}</p>
+                    </div>
+                    <button class="btn-cb btn-cb--soft btn-cb--block mt-2" data-close>Fechar</button>
+                    ${usuario.role === 'admin'
+                        ? '<a href="/admin" class="btn-cb btn-cb--primary btn-cb--block mt-1"><i class="bi bi-shield-lock"></i> Ir para o painel admin</a>'
+                        : ''}
+                </div>
+            `;
+            document.body.appendChild(bd);
+            bd.addEventListener('click', (e) => {
+                if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
+            });
+        });
+
+        // ------------------------------------------------------------
+        // Boot
+        // ------------------------------------------------------------
+        // Carrega TODOS primeiro pra alimentar o contador "inscrito"
+        // mesmo se a aba inicial for outra.
+        (async () => {
+            try {
+                cacheTodos = await API.get('/eventos');
+                atualizarStats();
+                renderizarFeed();
+            } catch (err) {
+                if (err.status === 401) { sair(true); return; }
+                document.getElementById('feed').innerHTML = `
+                    <div class="empty-state">
+                        <div class="ic"><i class="bi bi-wifi-off"></i></div>
+                        <h4>Falha ao conectar</h4>
+                        <p>${err.message}</p>
+                    </div>
+                `;
+            }
+        })();
+    </script>
+</body>
+</html>
