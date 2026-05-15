@@ -114,8 +114,8 @@
         </button>
     </nav>
 
-    <script src="/static/js/api.js"></script>
-    <script src="/static/js/ui.js"></script>
+    <script src="/static/js/api.js?v=2"></script>
+    <script src="/static/js/ui.js?v=2"></script>
     <script>
         // ------------------------------------------------------------
         // Guarda: precisa estar logado (qualquer role)
@@ -568,22 +568,7 @@
         // ------------------------------------------------------------
         window.carregarMais = carregarMais; // expõe para o onclick inline
 
-        (async () => {
-            try {
-                cacheTodos = await API.get(`/eventos?${buildParams(0)}`);
-                atualizarStats();
-                renderizarFeed(false);
-            } catch (err) {
-                if (err.status === 401) { sair(true); return; }
-                document.getElementById('feed').innerHTML = `
-                    <div class="empty-state">
-                        <div class="ic"><i class="bi bi-wifi-off"></i></div>
-                        <h4>Falha ao conectar</h4>
-                        <p>${err.message}</p>
-                    </div>
-                `;
-            }
-        })();
+        carregarFeed();
     </script>
 </body>
 </html>

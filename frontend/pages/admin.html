@@ -356,7 +356,7 @@
             const cont = document.getElementById('lista-eventos-admin');
             cont.innerHTML = '<div class="cb-spinner"></div>';
             try {
-                const eventos = await API.get('/eventos');
+                const { eventos } = await API.get('/eventos?limite=100');
                 if (eventos.length === 0) {
                     cont.innerHTML = `
                         <div class="empty-state cb-card">
