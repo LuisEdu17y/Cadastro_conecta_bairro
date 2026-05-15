@@ -85,6 +85,44 @@ class TestMe:
         assert r.status_code == 401
 
 
+class TestAtualizarPerfil:
+    def test_atualizar_nome(self, client):
+        registrar_usuario(client)
+        token = login_usuario(client)
+        r = client.put("/auth/me", json={"nome": "Novo Nome"}, headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 200
+        assert r.json()["nome"] == "Novo Nome"
+
+    def test_atualizar_bairro_e_telefone(self, client):
+        registrar_usuario(client)
+        token = login_usuario(client)
+        r = client.put(
+            "/auth/me",
+            json={"bairro": "Centro", "telefone": "61999999999"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert r.status_code == 200
+        assert r.json()["bairro"] == "Centro"
+        assert r.json()["telefone"] == "61999999999"
+
+    def test_atualizar_senha(self, client):
+        registrar_usuario(client)
+        token = login_usuario(client)
+        client.put("/auth/me", json={"senha": "novasenha999"}, headers={"Authorization": f"Bearer {token}"})
+        r = client.post("/auth/login", json={"email": "morador@test.com", "senha": "novasenha999"})
+        assert r.status_code == 200
+
+    def test_atualizar_nome_vazio(self, client):
+        registrar_usuario(client)
+        token = login_usuario(client)
+        r = client.put("/auth/me", json={"nome": "  "}, headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code == 400
+
+    def test_sem_autenticacao(self, client):
+        r = client.put("/auth/me", json={"nome": "Teste"})
+        assert r.status_code == 401
+
+
 class TestEsqueciSenha:
     def test_esqueci_senha_email_existente(self, client):
         registrar_usuario(client)

@@ -117,6 +117,15 @@ class EventoPublic(EventoBase):
     inscrito: bool = False
 
 
+class EventosPaginados(SQLModel):
+    """Resposta paginada de eventos."""
+    total: int
+    limite: int
+    offset: int
+    tem_mais: bool
+    eventos: list[EventoPublic]
+
+
 # ============================================================
 # INSCRIÇÃO
 # ============================================================

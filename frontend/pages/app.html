@@ -141,9 +141,11 @@
         // ------------------------------------------------------------
         let aba = 'todos';              // 'todos' ou 'meus'
         let filtro = 'Todos';           // modalidade
-        let cacheTodos = [];            // último GET /eventos
-        let cacheMeus = [];             // último GET /eventos/meus
+        let cacheTodos = { total: 0, tem_mais: false, eventos: [] };
+        let cacheMeus  = [];            // GET /eventos/meus (sem paginação)
         let filtrosAvancados = {};      // { data_inicio, data_fim, bairro, local }
+        let offsetAtual = 0;
+        const LIMITE = 12;
 
         // ------------------------------------------------------------
         // Filtros avançados — toggle e lógica
@@ -179,24 +181,33 @@
         });
 
         // ------------------------------------------------------------
-        // Carregar dados
+        // Helpers de query string
+        // ------------------------------------------------------------
+        function buildParams(offset = 0) {
+            const params = new URLSearchParams();
+            if (filtro !== 'Todos') params.set('modalidade', filtro);
+            Object.entries(filtrosAvancados).forEach(([k, v]) => params.set(k, v));
+            params.set('limite', LIMITE);
+            params.set('offset', offset);
+            return params.toString();
+        }
+
+        // ------------------------------------------------------------
+        // Carregar dados (primeira página — reseta o feed)
         // ------------------------------------------------------------
         async function carregarFeed() {
+            offsetAtual = 0;
             const feed = document.getElementById('feed');
             feed.innerHTML = '<div class="cb-spinner"></div>';
 
             try {
                 if (aba === 'todos') {
-                    const params = new URLSearchParams();
-                    if (filtro !== 'Todos') params.set('modalidade', filtro);
-                    Object.entries(filtrosAvancados).forEach(([k, v]) => params.set(k, v));
-                    const qs = params.toString() ? `?${params}` : '';
-                    cacheTodos = await API.get(`/eventos${qs}`);
+                    cacheTodos = await API.get(`/eventos?${buildParams(0)}`);
                 } else {
                     cacheMeus = await API.get('/eventos/meus');
                 }
                 atualizarStats();
-                renderizarFeed();
+                renderizarFeed(false);
             } catch (err) {
                 if (err.status === 401) { sair(true); return; }
                 feed.innerHTML = `
@@ -209,29 +220,70 @@
             }
         }
 
-        function atualizarStats() {
-            document.getElementById('stat-total').textContent = cacheTodos.length;
-            const meus = cacheMeus.length || cacheTodos.filter(e => e.inscrito).length;
-            document.getElementById('stat-inscrito').textContent = meus;
+        // Carrega a próxima página e ACRESCENTA ao feed
+        async function carregarMais() {
+            const btn = document.getElementById('btn-carregar-mais');
+            if (btn) { btn.disabled = true; btn.textContent = 'Carregando...'; }
+
+            offsetAtual += LIMITE;
+            try {
+                const pagina = await API.get(`/eventos?${buildParams(offsetAtual)}`);
+                cacheTodos.eventos.push(...pagina.eventos);
+                cacheTodos.tem_mais = pagina.tem_mais;
+                cacheTodos.total = pagina.total;
+                renderizarFeed(true);
+            } catch (err) {
+                offsetAtual -= LIMITE; // reverte
+                toast('Erro ao carregar mais eventos', 'error');
+                if (btn) { btn.disabled = false; btn.textContent = 'Carregar mais'; }
+            }
         }
 
-        function renderizarFeed() {
+        function atualizarStats() {
+            const total = aba === 'todos' ? cacheTodos.total : cacheMeus.length;
+            document.getElementById('stat-total').textContent = total;
+            const inscritos = aba === 'todos'
+                ? cacheTodos.eventos.filter(e => e.inscrito).length
+                : cacheMeus.length;
+            document.getElementById('stat-inscrito').textContent = inscritos;
+        }
+
+        function renderizarFeed(append = false) {
             const feed = document.getElementById('feed');
-            // No modo "todos" com filtros avançados ativos, a filtragem por modalidade
-            // já foi enviada ao servidor via query string; só filtramos localmente no modo "meus".
-            let lista = aba === 'todos' ? cacheTodos : cacheMeus;
 
-            if (aba === 'meus' && filtro !== 'Todos') {
-                lista = lista.filter(e => e.modalidade === filtro);
+            if (aba === 'todos') {
+                let lista = cacheTodos.eventos;
+                if (lista.length === 0) { feed.innerHTML = renderVazio(); return; }
+
+                if (append) {
+                    // Remove botão antigo antes de adicionar novos cards + botão novo
+                    document.getElementById('btn-carregar-mais')?.remove();
+                } else {
+                    feed.innerHTML = '';
+                }
+
+                feed.insertAdjacentHTML('beforeend', lista.slice(append ? lista.length - LIMITE : 0).map(renderCard).join(''));
+
+                // Botão "Carregar mais"
+                document.getElementById('btn-carregar-mais')?.remove();
+                if (cacheTodos.tem_mais) {
+                    feed.insertAdjacentHTML('beforeend', `
+                        <div style="text-align:center;padding:1rem 0 0.5rem;">
+                            <button id="btn-carregar-mais" class="btn-cb btn-cb--soft"
+                                    onclick="carregarMais()" style="min-width:160px;">
+                                <i class="bi bi-arrow-down-circle"></i> Carregar mais
+                            </button>
+                        </div>
+                    `);
+                }
+            } else {
+                // Aba "meus" — sem paginação
+                let lista = cacheMeus;
+                if (filtro !== 'Todos') lista = lista.filter(e => e.modalidade === filtro);
+                if (lista.length === 0) { feed.innerHTML = renderVazio(); return; }
+                feed.classList.add('stagger');
+                feed.innerHTML = lista.map(renderCard).join('');
             }
-
-            if (lista.length === 0) {
-                feed.innerHTML = renderVazio();
-                return;
-            }
-
-            feed.classList.add('stagger');
-            feed.innerHTML = lista.map(renderCard).join('');
         }
 
         function renderVazio() {
@@ -369,7 +421,7 @@
                 document.querySelectorAll('#filtro-row .chip').forEach(c => c.classList.remove('is-active'));
                 chip.classList.add('is-active');
                 filtro = chip.dataset.filtro;
-                renderizarFeed();
+                carregarFeed(); // sempre busca do zero ao mudar filtro
             });
         });
 
@@ -404,46 +456,123 @@
             if (ok) sair();
         });
 
-        // Perfil — modal simples
-        document.getElementById('btn-perfil').addEventListener('click', () => {
+        // Perfil — modal com visualização e edição
+        document.getElementById('btn-perfil').addEventListener('click', () => abrirPerfil());
+
+        function abrirPerfil(editando = false) {
             const bd = document.createElement('div');
             bd.className = 'cb-modal-backdrop';
-            bd.innerHTML = `
-                <div class="cb-modal">
-                    <div class="text-center mb-2">
-                        <div class="avatar" style="margin: 0 auto 0.8rem; width: 72px; height: 72px; font-size: 1.6rem;">
-                            ${iniciais(usuario.nome)}
+
+            if (!editando) {
+                bd.innerHTML = `
+                    <div class="cb-modal">
+                        <div class="text-center mb-2">
+                            <div class="avatar" style="margin:0 auto 0.8rem;width:72px;height:72px;font-size:1.6rem;">
+                                ${iniciais(usuario.nome)}
+                            </div>
+                            <h3 style="margin-bottom:0.2rem;">${escapeHTML(usuario.nome)}</h3>
+                            <p class="text-muted-soft" style="margin:0;">${escapeHTML(usuario.email)}</p>
+                            ${usuario.role === 'admin' ? '<span class="status-pill status-pill--admin mt-1">Administrador</span>' : ''}
                         </div>
-                        <h3 style="margin-bottom: 0.2rem;">${escapeHTML(usuario.nome)}</h3>
-                        <p class="text-muted-soft" style="margin: 0;">${escapeHTML(usuario.email)}</p>
-                        ${usuario.role === 'admin' ? '<span class="status-pill status-pill--admin mt-1">Administrador</span>' : ''}
+                        <div style="margin-top:1.2rem;font-size:0.9rem;color:var(--ink-700);">
+                            <p><strong>Bairro:</strong> ${escapeHTML(usuario.bairro || '—')}</p>
+                            <p><strong>Telefone:</strong> ${escapeHTML(usuario.telefone || '—')}</p>
+                        </div>
+                        <button class="btn-cb btn-cb--primary btn-cb--block mt-2" id="btn-editar-perfil">
+                            <i class="bi bi-pencil"></i> Editar perfil
+                        </button>
+                        ${usuario.role === 'admin'
+                            ? '<a href="/admin" class="btn-cb btn-cb--soft btn-cb--block mt-1"><i class="bi bi-shield-lock"></i> Painel admin</a>'
+                            : ''}
+                        <button class="btn-cb btn-cb--ghost btn-cb--block mt-1" data-close>Fechar</button>
                     </div>
-                    <div style="margin-top: 1.2rem; font-size: 0.9rem; color: var(--ink-700);">
-                        <p><strong>Bairro:</strong> ${escapeHTML(usuario.bairro || '—')}</p>
-                        <p><strong>Telefone:</strong> ${escapeHTML(usuario.telefone || '—')}</p>
+                `;
+                document.body.appendChild(bd);
+                bd.querySelector('#btn-editar-perfil').addEventListener('click', () => {
+                    bd.remove();
+                    abrirPerfil(true);
+                });
+            } else {
+                bd.innerHTML = `
+                    <div class="cb-modal">
+                        <h3>Editar perfil</h3>
+                        <form id="form-perfil">
+                            <div class="field">
+                                <label>Nome</label>
+                                <input id="p-nome" value="${escapeHTML(usuario.nome)}" required>
+                            </div>
+                            <div class="field">
+                                <label>Bairro</label>
+                                <input id="p-bairro" placeholder="Seu bairro" value="${escapeHTML(usuario.bairro || '')}">
+                            </div>
+                            <div class="field">
+                                <label>Telefone</label>
+                                <input id="p-telefone" placeholder="(00) 00000-0000" value="${escapeHTML(usuario.telefone || '')}">
+                            </div>
+                            <div class="field">
+                                <label>Nova senha <span class="text-muted-soft" style="font-weight:400;">(deixe em branco para manter)</span></label>
+                                <input id="p-senha" type="password" placeholder="Mínimo 6 caracteres" minlength="6">
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <button type="button" class="btn-cb btn-cb--soft btn-cb--block" data-close>Cancelar</button>
+                                <button type="submit" class="btn-cb btn-cb--primary btn-cb--block" id="btn-salvar-perfil">
+                                    Salvar
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    <button class="btn-cb btn-cb--soft btn-cb--block mt-2" data-close>Fechar</button>
-                    ${usuario.role === 'admin'
-                        ? '<a href="/admin" class="btn-cb btn-cb--primary btn-cb--block mt-1"><i class="bi bi-shield-lock"></i> Ir para o painel admin</a>'
-                        : ''}
-                </div>
-            `;
-            document.body.appendChild(bd);
+                `;
+                document.body.appendChild(bd);
+
+                bd.querySelector('#form-perfil').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const payload = {};
+                    const nome = bd.querySelector('#p-nome').value.trim();
+                    const bairro = bd.querySelector('#p-bairro').value.trim();
+                    const telefone = bd.querySelector('#p-telefone').value.trim();
+                    const senha = bd.querySelector('#p-senha').value;
+
+                    if (nome !== usuario.nome) payload.nome = nome;
+                    if (bairro !== (usuario.bairro || '')) payload.bairro = bairro || null;
+                    if (telefone !== (usuario.telefone || '')) payload.telefone = telefone || null;
+                    if (senha) payload.senha = senha;
+
+                    if (Object.keys(payload).length === 0) { bd.remove(); return; }
+
+                    const btn = bd.querySelector('#btn-salvar-perfil');
+                    btn.disabled = true;
+                    try {
+                        const atualizado = await API.put('/auth/me', payload);
+                        // Atualiza o usuário em memória e no localStorage
+                        Object.assign(usuario, atualizado);
+                        API.setUser(atualizado);
+                        // Atualiza header
+                        document.getElementById('user-avatar').textContent = iniciais(usuario.nome);
+                        document.getElementById('user-name').textContent = usuario.nome.split(' ')[0];
+                        toast('Perfil atualizado!', 'success');
+                        bd.remove();
+                    } catch (err) {
+                        toast(err.message || 'Erro ao salvar', 'error');
+                        btn.disabled = false;
+                    }
+                });
+            }
+
             bd.addEventListener('click', (e) => {
                 if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
             });
-        });
+        }
 
         // ------------------------------------------------------------
         // Boot
         // ------------------------------------------------------------
-        // Carrega TODOS primeiro pra alimentar o contador "inscrito"
-        // mesmo se a aba inicial for outra.
+        window.carregarMais = carregarMais; // expõe para o onclick inline
+
         (async () => {
             try {
-                cacheTodos = await API.get('/eventos');
+                cacheTodos = await API.get(`/eventos?${buildParams(0)}`);
                 atualizarStats();
-                renderizarFeed();
+                renderizarFeed(false);
             } catch (err) {
                 if (err.status === 401) { sair(true); return; }
                 document.getElementById('feed').innerHTML = `

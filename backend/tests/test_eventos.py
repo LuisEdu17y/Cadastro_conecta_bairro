@@ -12,11 +12,33 @@ from tests.conftest import (
 )
 
 
+# Helper: extrai lista de eventos da resposta paginada
+def eventos(r):
+    return r.json()["eventos"]
+
+
 class TestListagem:
     def test_listar_sem_autenticacao(self, client):
         r = client.get("/eventos")
         assert r.status_code == 200
-        assert isinstance(r.json(), list)
+        data = r.json()
+        assert "eventos" in data
+        assert "total" in data
+        assert "tem_mais" in data
+
+    def test_paginacao_basica(self, client):
+        token = login_admin(client)
+        for i in range(5):
+            criar_evento(client, token, titulo=f"Evento {i}")
+
+        r = client.get("/eventos?limite=2&offset=0")
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data["eventos"]) == 2
+        assert data["tem_mais"] is True
+
+        r2 = client.get(f"/eventos?limite=2&offset=2")
+        assert len(r2.json()["eventos"]) == 2
 
     def test_filtro_modalidade(self, client):
         token = login_admin(client)
@@ -24,8 +46,7 @@ class TestListagem:
         criar_evento(client, token, titulo="Zumba B", modalidade="Zumba")
 
         r = client.get("/eventos?modalidade=Futebol")
-        dados = r.json()
-        assert all(e["modalidade"] == "Futebol" for e in dados)
+        assert all(e["modalidade"] == "Futebol" for e in eventos(r))
 
     def test_filtro_bairro(self, client):
         token = login_admin(client)
@@ -33,20 +54,19 @@ class TestListagem:
         criar_evento(client, token, titulo="Evento Sul", bairro="Asa Sul")
 
         r = client.get("/eventos?bairro=Asa Norte")
-        dados = r.json()
-        assert len(dados) == 1
-        assert dados[0]["bairro"] == "Asa Norte"
+        evs = eventos(r)
+        assert len(evs) == 1
+        assert evs[0]["bairro"] == "Asa Norte"
 
     def test_filtro_local(self, client):
         token = login_admin(client)
-        # Usa nome único para não conflitar com eventos de semente
         criar_evento(client, token, local="ArenaExclusiva99")
         criar_evento(client, token, local="PraçaOutra")
 
         r = client.get("/eventos?local=ArenaExclusiva99")
-        dados = r.json()
-        assert len(dados) == 1
-        assert "ArenaExclusiva99" in dados[0]["local"]
+        evs = eventos(r)
+        assert len(evs) == 1
+        assert "ArenaExclusiva99" in evs[0]["local"]
 
     def test_detalhar_evento(self, client):
         token = login_admin(client)
@@ -106,14 +126,12 @@ class TestInscricoes:
         token_admin = login_admin(client)
         evento = criar_evento(client, token_admin)
 
-        # Inscreve
         r = client.post(
             f"/eventos/{evento['id']}/inscrever",
             headers={"Authorization": f"Bearer {token_user}"},
         )
         assert r.status_code == 201
 
-        # Verifica flag 'inscrito'
         r2 = client.get(
             f"/eventos/{evento['id']}",
             headers={"Authorization": f"Bearer {token_user}"},
@@ -121,7 +139,6 @@ class TestInscricoes:
         assert r2.json()["inscrito"] is True
         assert r2.json()["total_inscritos"] == 1
 
-        # Cancela
         r3 = client.delete(
             f"/eventos/{evento['id']}/inscrever",
             headers={"Authorization": f"Bearer {token_user}"},
@@ -135,14 +152,8 @@ class TestInscricoes:
         token_admin = login_admin(client)
         evento = criar_evento(client, token_admin)
 
-        client.post(
-            f"/eventos/{evento['id']}/inscrever",
-            headers={"Authorization": f"Bearer {token_user}"},
-        )
-        r = client.post(
-            f"/eventos/{evento['id']}/inscrever",
-            headers={"Authorization": f"Bearer {token_user}"},
-        )
+        client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token_user}"})
+        r = client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token_user}"})
         assert r.status_code == 409
 
     def test_vagas_esgotadas(self, client):
@@ -154,14 +165,8 @@ class TestInscricoes:
 
         evento = criar_evento(client, token_admin, vagas=1)
 
-        client.post(
-            f"/eventos/{evento['id']}/inscrever",
-            headers={"Authorization": f"Bearer {token1}"},
-        )
-        r = client.post(
-            f"/eventos/{evento['id']}/inscrever",
-            headers={"Authorization": f"Bearer {token2}"},
-        )
+        client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token1}"})
+        r = client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token2}"})
         assert r.status_code == 409
         assert "esgotadas" in r.json()["detail"].lower()
 
@@ -171,10 +176,7 @@ class TestInscricoes:
         token_admin = login_admin(client)
         evento = criar_evento(client, token_admin)
 
-        client.post(
-            f"/eventos/{evento['id']}/inscrever",
-            headers={"Authorization": f"Bearer {token_user}"},
-        )
+        client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token_user}"})
         r = client.get("/eventos/meus", headers={"Authorization": f"Bearer {token_user}"})
         assert r.status_code == 200
         assert len(r.json()) == 1

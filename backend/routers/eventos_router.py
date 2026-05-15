@@ -35,6 +35,7 @@ from models import (
     EventoCreate,
     EventoUpdate,
     EventoPublic,
+    EventosPaginados,
     Inscricao,
 )
 from auth import usuario_atual, apenas_admin, usuario_atual_opcional
@@ -95,32 +96,54 @@ def _listar_inscritos_com_usuarios(session: Session, evento_id: int) -> list[Usu
 # LISTAGEM / DETALHE
 # ──────────────────────────────────────────────
 
-@router.get("", response_model=list[EventoPublic])
+LIMITE_PADRAO = 12
+LIMITE_MAXIMO = 100
+
+
+@router.get("", response_model=EventosPaginados)
 def listar_eventos(
     modalidade: Optional[str] = None,
     bairro: Optional[str] = None,
     local: Optional[str] = None,
     data_inicio: Optional[datetime] = Query(default=None, description="Filtrar a partir desta data (ISO 8601)"),
     data_fim: Optional[datetime] = Query(default=None, description="Filtrar até esta data (ISO 8601)"),
+    limite: int = Query(default=LIMITE_PADRAO, ge=1, le=LIMITE_MAXIMO, description="Eventos por página"),
+    offset: int = Query(default=0, ge=0, description="Quantos eventos pular"),
     session: Session = Depends(get_session),
     usuario: Optional[Usuario] = Depends(usuario_atual_opcional),
 ):
-    """Lista eventos com filtros opcionais: modalidade, bairro, local, data_inicio, data_fim."""
-    query = select(Evento).order_by(Evento.criado_em.desc())
+    """Lista eventos paginados com filtros opcionais."""
+    # Query base com filtros
+    query_base = select(Evento)
 
     if modalidade and modalidade.lower() != "todos":
-        query = query.where(Evento.modalidade == modalidade)
+        query_base = query_base.where(Evento.modalidade == modalidade)
     if bairro:
-        query = query.where(Evento.bairro == bairro)
+        query_base = query_base.where(Evento.bairro == bairro)
     if local:
-        query = query.where(Evento.local.ilike(f"%{local}%"))
+        query_base = query_base.where(Evento.local.ilike(f"%{local}%"))
     if data_inicio:
-        query = query.where(Evento.data_inicio >= data_inicio)
+        query_base = query_base.where(Evento.data_inicio >= data_inicio)
     if data_fim:
-        query = query.where(Evento.data_inicio <= data_fim)
+        query_base = query_base.where(Evento.data_inicio <= data_fim)
 
-    eventos = session.exec(query).all()
-    return [_para_publico(session, ev, usuario) for ev in eventos]
+    # Total para indicar se há mais páginas
+    total = session.exec(
+        select(func.count()).select_from(query_base.subquery())
+    ).one()
+
+    # Página atual
+    eventos = session.exec(
+        query_base.order_by(Evento.criado_em.desc()).offset(offset).limit(limite)
+    ).all()
+
+    return EventosPaginados(
+        total=total,
+        limite=limite,
+        offset=offset,
+        tem_mais=(offset + limite) < total,
+        eventos=[_para_publico(session, ev, usuario) for ev in eventos],
+    )
 
 
 @router.get("/meus", response_model=list[EventoPublic])

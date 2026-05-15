@@ -20,6 +20,7 @@ from models import (
     Usuario,
     UsuarioCreate,
     UsuarioPublic,
+    UsuarioUpdate,
     LoginRequest,
     TokenResponse,
     PasswordResetToken,
@@ -98,6 +99,36 @@ def login(dados: LoginRequest, session: Session = Depends(get_session)):
 @router.get("/me", response_model=UsuarioPublic)
 def quem_sou_eu(usuario: Usuario = Depends(usuario_atual)):
     """Retorna os dados do usuário autenticado."""
+    return usuario
+
+
+@router.put("/me", response_model=UsuarioPublic)
+def atualizar_perfil(
+    dados: UsuarioUpdate,
+    session: Session = Depends(get_session),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Atualiza nome, bairro, telefone ou senha do próprio usuário."""
+    if dados.nome is not None:
+        nome = dados.nome.strip()
+        if not nome:
+            raise HTTPException(status_code=400, detail="Nome não pode ser vazio")
+        usuario.nome = nome
+
+    if dados.bairro is not None:
+        usuario.bairro = dados.bairro.strip() or None
+
+    if dados.telefone is not None:
+        usuario.telefone = dados.telefone.strip() or None
+
+    if dados.senha is not None:
+        if len(dados.senha) < 6:
+            raise HTTPException(status_code=400, detail="A senha precisa ter no mínimo 6 caracteres")
+        usuario.senha_hash = hash_senha(dados.senha)
+
+    session.add(usuario)
+    session.commit()
+    session.refresh(usuario)
     return usuario
 
 
