@@ -1,36 +1,48 @@
-# Python
+# ── Python ────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
 
-# Virtual envs
+# ── Ambientes virtuais ────────────────────────────────────
 venv/
 env/
 ENV/
 .venv/
 
-# Banco SQLite (gerado em runtime)
+# ── Banco de dados (gerado em runtime) ───────────────────
 *.db
 *.sqlite
 *.sqlite3
 
-# Variáveis de ambiente
+# ── Uploads de usuário (gerado em runtime) ───────────────
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# ── Variáveis de ambiente ─────────────────────────────────
 .env
 .env.local
+.env.production
 
-# Editores / IDEs
+# ── Testes / cobertura ────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ── Editores / IDEs ───────────────────────────────────────
 .vscode/
 .idea/
 *.swp
 *.swo
-.DS_Store
+*.DS_Store
+Thumbs.db
 
-# Logs
+# ── Logs ─────────────────────────────────────────────────
 *.log
 
-# Build / dist
+# ── Build / dist ─────────────────────────────────────────
 build/
 dist/
 *.egg-info/

@@ -73,12 +73,41 @@ const API = (() => {
         return dados;
     }
 
+    async function upload(path, formData) {
+        const token = getToken();
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        let resposta;
+        try {
+            resposta = await fetch(`${baseURL}${path}`, { method: 'POST', headers, body: formData });
+        } catch (e) {
+            const err = new Error('Não foi possível conectar ao servidor');
+            err.status = 0;
+            throw err;
+        }
+
+        let dados;
+        const tipo = resposta.headers.get('content-type') || '';
+        if (tipo.includes('application/json')) dados = await resposta.json();
+        else dados = await resposta.text();
+
+        if (!resposta.ok) {
+            const msg = (dados && dados.detail) || dados || 'Erro no upload';
+            const err = new Error(typeof msg === 'string' ? msg : 'Erro no upload');
+            err.status = resposta.status;
+            throw err;
+        }
+        return dados;
+    }
+
     return {
         baseURL,
         get:    (path)        => request('GET', path),
         post:   (path, body)  => request('POST', path, body),
         put:    (path, body)  => request('PUT', path, body),
         delete: (path)        => request('DELETE', path),
+        upload,
         setToken, getToken, clearToken,
         setUser,  getUser,
         isAuthenticated: () => !!getToken(),

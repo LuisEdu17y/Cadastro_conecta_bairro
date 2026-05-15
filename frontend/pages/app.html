@@ -60,6 +60,38 @@
             <button class="chip" data-filtro="Outros"><i class="bi bi-stars"></i> Outros</button>
         </div>
 
+        <!-- Filtros avançados (expansível) -->
+        <div style="padding: 0 1rem;">
+            <button id="btn-filtros-avancados" class="btn-cb btn-cb--soft btn-cb--sm" style="width:100%;justify-content:space-between;display:flex;align-items:center;">
+                <span><i class="bi bi-sliders"></i> Filtros avançados</span>
+                <i class="bi bi-chevron-down" id="ic-filtros"></i>
+            </button>
+            <div id="painel-filtros" style="display:none;background:#fff;border-radius:12px;padding:1rem;margin-top:0.5rem;box-shadow:0 2px 8px rgba(0,0,0,.06);">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;margin-bottom:0.7rem;">
+                    <div class="field" style="margin:0;">
+                        <label style="font-size:0.8rem;">Data inicial</label>
+                        <input id="f-data-inicio" type="date" style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+                    </div>
+                    <div class="field" style="margin:0;">
+                        <label style="font-size:0.8rem;">Data final</label>
+                        <input id="f-data-fim" type="date" style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+                    </div>
+                </div>
+                <div class="field" style="margin:0 0 0.7rem;">
+                    <label style="font-size:0.8rem;">Bairro do evento</label>
+                    <input id="f-bairro" type="text" placeholder="Ex: Centro, Asa Norte..." style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+                </div>
+                <div class="field" style="margin:0 0 0.7rem;">
+                    <label style="font-size:0.8rem;">Local / espaço</label>
+                    <input id="f-local" type="text" placeholder="Ex: Quadra, Praça..." style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+                </div>
+                <div style="display:flex;gap:0.5rem;">
+                    <button id="btn-aplicar-filtros" class="btn-cb btn-cb--primary btn-cb--sm" style="flex:1;">Aplicar</button>
+                    <button id="btn-limpar-filtros" class="btn-cb btn-cb--soft btn-cb--sm" style="flex:1;">Limpar</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Lista -->
         <section id="feed">
             <div class="cb-spinner"></div>
@@ -111,6 +143,40 @@
         let filtro = 'Todos';           // modalidade
         let cacheTodos = [];            // último GET /eventos
         let cacheMeus = [];             // último GET /eventos/meus
+        let filtrosAvancados = {};      // { data_inicio, data_fim, bairro, local }
+
+        // ------------------------------------------------------------
+        // Filtros avançados — toggle e lógica
+        // ------------------------------------------------------------
+        document.getElementById('btn-filtros-avancados').addEventListener('click', () => {
+            const painel = document.getElementById('painel-filtros');
+            const ic = document.getElementById('ic-filtros');
+            const aberto = painel.style.display !== 'none';
+            painel.style.display = aberto ? 'none' : 'block';
+            ic.className = aberto ? 'bi bi-chevron-down' : 'bi bi-chevron-up';
+        });
+
+        document.getElementById('btn-aplicar-filtros').addEventListener('click', () => {
+            filtrosAvancados = {};
+            const di = document.getElementById('f-data-inicio').value;
+            const df = document.getElementById('f-data-fim').value;
+            const b  = document.getElementById('f-bairro').value.trim();
+            const l  = document.getElementById('f-local').value.trim();
+            if (di) filtrosAvancados.data_inicio = di;
+            if (df) filtrosAvancados.data_fim = df;
+            if (b)  filtrosAvancados.bairro = b;
+            if (l)  filtrosAvancados.local = l;
+            carregarFeed();
+        });
+
+        document.getElementById('btn-limpar-filtros').addEventListener('click', () => {
+            filtrosAvancados = {};
+            document.getElementById('f-data-inicio').value = '';
+            document.getElementById('f-data-fim').value = '';
+            document.getElementById('f-bairro').value = '';
+            document.getElementById('f-local').value = '';
+            carregarFeed();
+        });
 
         // ------------------------------------------------------------
         // Carregar dados
@@ -121,7 +187,11 @@
 
             try {
                 if (aba === 'todos') {
-                    cacheTodos = await API.get('/eventos');
+                    const params = new URLSearchParams();
+                    if (filtro !== 'Todos') params.set('modalidade', filtro);
+                    Object.entries(filtrosAvancados).forEach(([k, v]) => params.set(k, v));
+                    const qs = params.toString() ? `?${params}` : '';
+                    cacheTodos = await API.get(`/eventos${qs}`);
                 } else {
                     cacheMeus = await API.get('/eventos/meus');
                 }
@@ -147,9 +217,11 @@
 
         function renderizarFeed() {
             const feed = document.getElementById('feed');
+            // No modo "todos" com filtros avançados ativos, a filtragem por modalidade
+            // já foi enviada ao servidor via query string; só filtramos localmente no modo "meus".
             let lista = aba === 'todos' ? cacheTodos : cacheMeus;
 
-            if (filtro !== 'Todos') {
+            if (aba === 'meus' && filtro !== 'Todos') {
                 lista = lista.filter(e => e.modalidade === filtro);
             }
 
@@ -216,8 +288,20 @@
                 ? `<p style="font-size: 0.86rem; color: var(--ink-500); margin: 0.4rem 0 0.6rem;">${escapeHTML(ev.descricao)}</p>`
                 : '';
 
+            const imagemBanner = ev.imagem_url
+                ? `<div style="margin:-0 -0 0.8rem;border-radius:10px;overflow:hidden;max-height:160px;">
+                       <img src="${ev.imagem_url}" alt="Imagem do evento" loading="lazy"
+                            style="width:100%;height:160px;object-fit:cover;display:block;">
+                   </div>`
+                : '';
+
+            const bairroInfo = ev.bairro
+                ? `<div class="row"><i class="bi bi-map"></i> ${escapeHTML(ev.bairro)}</div>`
+                : '';
+
             return `
                 <article class="event-card ${cls}">
+                    ${imagemBanner}
                     <span class="badge-cat ${catBadge}">
                         <i class="bi ${ic}"></i> ${ev.modalidade}
                     </span>
@@ -226,6 +310,7 @@
                     <div class="meta">
                         <div class="row"><i class="bi bi-calendar-event"></i> ${escapeHTML(ev.data)}</div>
                         <div class="row"><i class="bi bi-geo-alt"></i> ${escapeHTML(ev.local)}</div>
+                        ${bairroInfo}
                     </div>
                     <div class="footer-row">
                         <span class="vagas-info ${cheio ? 'is-cheio' : ''}">

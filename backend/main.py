@@ -8,8 +8,7 @@ Responsabilidades:
 2. Configura CORS
 3. Registra todos os routers
 4. Cria as tabelas + admin padrão na inicialização
-5. Serve o frontend (HTML/CSS/JS) na raiz '/'
-   → assim você roda UMA coisa só (uvicorn) e tem app + API juntos
+5. Serve o frontend (HTML/CSS/JS) e os uploads em rotas estáticas
 
 Como rodar:
     cd backend
@@ -38,15 +37,13 @@ from routers.auth_router import router as auth_router
 from routers.eventos_router import router as eventos_router
 from routers.admin_router import router as admin_router
 
-
-# Pasta do frontend (../frontend, relativo a este arquivo)
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
 
 
-# --------- Ciclo de vida da aplicação ---------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Cria o banco e o admin padrão na inicialização."""
     criar_banco()
     with Session(engine) as session:
         garantir_admin_padrao(session)
@@ -63,13 +60,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Conecta Bairro API",
     description="API para conectar a comunidade através de eventos locais.",
-    version="2.0.0",
+    version="2.1.0",
     lifespan=lifespan,
 )
 
-
-# --------- CORS ---------
-# Em produção restrinja allow_origins para os domínios oficiais.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -78,22 +72,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# --------- Routers ---------
 app.include_router(auth_router)
 app.include_router(eventos_router)
 app.include_router(admin_router)
 
+# Servir imagens de eventos enviadas por upload
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
-# --------- Frontend estático ---------
-# Tudo dentro de /frontend é servido em /static.
-# As páginas HTML têm rotas explícitas pra ficar com URLs limpas (/, /login, etc).
+# Servir os arquivos estáticos do frontend
 if FRONTEND_DIR.exists():
-    app.mount(
-        "/static",
-        StaticFiles(directory=str(FRONTEND_DIR)),
-        name="static",
-    )
+    app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
 
     def _pagina(arquivo: str) -> FileResponse:
         return FileResponse(str(FRONTEND_DIR / "pages" / arquivo))
@@ -118,12 +106,15 @@ if FRONTEND_DIR.exists():
     def admin_page():
         return _pagina("admin.html")
 
+    @app.get("/redefinir-senha", include_in_schema=False)
+    def redefinir_senha_page():
+        return _pagina("redefinir-senha.html")
 
-# --------- Healthcheck ---------
+
 @app.get("/api", tags=["Status"])
 def status():
     return {
         "servico": "Conecta Bairro API",
         "status": "online",
-        "versao": "2.0.0",
+        "versao": "2.1.0",
     }

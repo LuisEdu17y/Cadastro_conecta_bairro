@@ -4,7 +4,7 @@ routers/eventos_router.py
 Rotas de eventos e inscrições.
 
 Públicas:
-- GET    /eventos                    → lista (com flag 'inscrito' se logado)
+- GET    /eventos                    → lista (filtros: modalidade, bairro, data_inicio, data_fim, local)
 - GET    /eventos/{id}               → detalhes
 
 Restritas a morador autenticado:
@@ -14,12 +14,18 @@ Restritas a morador autenticado:
 
 Restritas a admin:
 - POST   /eventos                    → cria
-- PUT    /eventos/{id}               → edita
-- DELETE /eventos/{id}               → remove
+- PUT    /eventos/{id}               → edita (notifica inscritos por e-mail)
+- DELETE /eventos/{id}               → remove (notifica inscritos por e-mail)
+- POST   /eventos/{id}/imagem        → upload de imagem
 """
 
+import uuid
+import shutil
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from sqlmodel import Session, select, func
 
 from database import get_session
@@ -32,11 +38,27 @@ from models import (
     Inscricao,
 )
 from auth import usuario_atual, apenas_admin, usuario_atual_opcional
+from email_service import (
+    email_inscricao_confirmada,
+    email_inscricao_cancelada,
+    email_evento_atualizado,
+    email_evento_cancelado,
+)
 
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
 
+# Pasta onde as imagens dos eventos são salvas
+UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
 
-# Helper: monta um EventoPublic com total_inscritos e flag 'inscrito'
+EXTENSOES_PERMITIDAS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+TAMANHO_MAX_MB = 5
+
+
+# ──────────────────────────────────────────────
+# Helper
+# ──────────────────────────────────────────────
+
 def _para_publico(
     session: Session, evento: Evento, usuario: Optional[Usuario]
 ) -> EventoPublic:
@@ -54,26 +76,49 @@ def _para_publico(
         ).first()
         inscrito = ja_inscrito is not None
 
-    publico = EventoPublic(
+    return EventoPublic(
         **evento.model_dump(),
         total_inscritos=total or 0,
         inscrito=inscrito,
     )
-    return publico
 
 
-# ---------------------- LISTAGEM ----------------------
+def _listar_inscritos_com_usuarios(session: Session, evento_id: int) -> list[Usuario]:
+    return session.exec(
+        select(Usuario)
+        .join(Inscricao, Inscricao.usuario_id == Usuario.id)
+        .where(Inscricao.evento_id == evento_id)
+    ).all()
+
+
+# ──────────────────────────────────────────────
+# LISTAGEM / DETALHE
+# ──────────────────────────────────────────────
 
 @router.get("", response_model=list[EventoPublic])
 def listar_eventos(
     modalidade: Optional[str] = None,
+    bairro: Optional[str] = None,
+    local: Optional[str] = None,
+    data_inicio: Optional[datetime] = Query(default=None, description="Filtrar a partir desta data (ISO 8601)"),
+    data_fim: Optional[datetime] = Query(default=None, description="Filtrar até esta data (ISO 8601)"),
     session: Session = Depends(get_session),
     usuario: Optional[Usuario] = Depends(usuario_atual_opcional),
 ):
-    """Lista todos os eventos. Filtra por modalidade se informada."""
+    """Lista eventos com filtros opcionais: modalidade, bairro, local, data_inicio, data_fim."""
     query = select(Evento).order_by(Evento.criado_em.desc())
+
     if modalidade and modalidade.lower() != "todos":
         query = query.where(Evento.modalidade == modalidade)
+    if bairro:
+        query = query.where(Evento.bairro == bairro)
+    if local:
+        query = query.where(Evento.local.ilike(f"%{local}%"))
+    if data_inicio:
+        query = query.where(Evento.data_inicio >= data_inicio)
+    if data_fim:
+        query = query.where(Evento.data_inicio <= data_fim)
+
     eventos = session.exec(query).all()
     return [_para_publico(session, ev, usuario) for ev in eventos]
 
@@ -106,10 +151,12 @@ def detalhar_evento(
     return _para_publico(session, evento, usuario)
 
 
-# ---------------------- INSCRIÇÃO ----------------------
+# ──────────────────────────────────────────────
+# INSCRIÇÃO
+# ──────────────────────────────────────────────
 
 @router.post("/{evento_id}/inscrever", status_code=201)
-def inscrever_em_evento(
+async def inscrever_em_evento(
     evento_id: int,
     session: Session = Depends(get_session),
     usuario: Usuario = Depends(usuario_atual),
@@ -118,7 +165,6 @@ def inscrever_em_evento(
     if not evento:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
 
-    # Verifica duplicidade
     ja = session.exec(
         select(Inscricao).where(
             Inscricao.evento_id == evento_id,
@@ -128,7 +174,6 @@ def inscrever_em_evento(
     if ja:
         raise HTTPException(status_code=409, detail="Você já está inscrito neste evento")
 
-    # Verifica limite de vagas (0 = ilimitado)
     if evento.vagas and evento.vagas > 0:
         total = session.exec(
             select(func.count(Inscricao.id)).where(Inscricao.evento_id == evento_id)
@@ -139,11 +184,16 @@ def inscrever_em_evento(
     nova = Inscricao(usuario_id=usuario.id, evento_id=evento_id)
     session.add(nova)
     session.commit()
+
+    await email_inscricao_confirmada(
+        usuario.email, usuario.nome, evento.titulo, evento.local, evento.data
+    )
+
     return {"mensagem": "Inscrição confirmada!", "evento_id": evento_id}
 
 
 @router.delete("/{evento_id}/inscrever")
-def cancelar_inscricao(
+async def cancelar_inscricao(
     evento_id: int,
     session: Session = Depends(get_session),
     usuario: Usuario = Depends(usuario_atual),
@@ -156,12 +206,20 @@ def cancelar_inscricao(
     ).first()
     if not inscricao:
         raise HTTPException(status_code=404, detail="Você não está inscrito neste evento")
+
+    evento = session.get(Evento, evento_id)
     session.delete(inscricao)
     session.commit()
+
+    if evento:
+        await email_inscricao_cancelada(usuario.email, usuario.nome, evento.titulo)
+
     return {"mensagem": "Inscrição cancelada"}
 
 
-# ---------------------- ADMIN: CRUD ----------------------
+# ──────────────────────────────────────────────
+# ADMIN: CRUD
+# ──────────────────────────────────────────────
 
 @router.post("", response_model=EventoPublic, status_code=201)
 def criar_evento(
@@ -169,7 +227,6 @@ def criar_evento(
     session: Session = Depends(get_session),
     admin: Usuario = Depends(apenas_admin),
 ):
-    """Apenas admin pode criar."""
     novo = Evento(**dados.model_dump(), criado_por_id=admin.id)
     session.add(novo)
     session.commit()
@@ -178,7 +235,7 @@ def criar_evento(
 
 
 @router.put("/{evento_id}", response_model=EventoPublic)
-def atualizar_evento(
+async def atualizar_evento(
     evento_id: int,
     dados: EventoUpdate,
     session: Session = Depends(get_session),
@@ -188,18 +245,23 @@ def atualizar_evento(
     if not evento:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
 
-    # Aplica somente campos enviados (não-None)
     for campo, valor in dados.model_dump(exclude_unset=True).items():
         setattr(evento, campo, valor)
 
     session.add(evento)
     session.commit()
     session.refresh(evento)
+
+    # Notifica todos os inscritos sobre a atualização
+    inscritos = _listar_inscritos_com_usuarios(session, evento_id)
+    for u in inscritos:
+        await email_evento_atualizado(u.email, u.nome, evento.titulo, evento.local, evento.data)
+
     return _para_publico(session, evento, admin)
 
 
 @router.delete("/{evento_id}")
-def deletar_evento(
+async def deletar_evento(
     evento_id: int,
     session: Session = Depends(get_session),
     admin: Usuario = Depends(apenas_admin),
@@ -207,6 +269,67 @@ def deletar_evento(
     evento = session.get(Evento, evento_id)
     if not evento:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
+
+    # Coleta inscritos antes de deletar
+    inscritos = _listar_inscritos_com_usuarios(session, evento_id)
+    titulo = evento.titulo
+
     session.delete(evento)
     session.commit()
+
+    # Notifica inscritos após deletar
+    for u in inscritos:
+        await email_evento_cancelado(u.email, u.nome, titulo)
+
     return {"mensagem": "Evento excluído com sucesso"}
+
+
+# ──────────────────────────────────────────────
+# ADMIN: UPLOAD DE IMAGEM
+# ──────────────────────────────────────────────
+
+@router.post("/{evento_id}/imagem", response_model=EventoPublic)
+async def upload_imagem(
+    evento_id: int,
+    arquivo: UploadFile = File(..., description="Imagem do evento (jpg, png, webp, gif — máx 5 MB)"),
+    session: Session = Depends(get_session),
+    admin: Usuario = Depends(apenas_admin),
+):
+    evento = session.get(Evento, evento_id)
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+
+    # Valida extensão
+    sufixo = Path(arquivo.filename or "").suffix.lower()
+    if sufixo not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Formato não permitido. Use: {', '.join(EXTENSOES_PERMITIDAS)}",
+        )
+
+    # Valida tamanho
+    conteudo = await arquivo.read()
+    if len(conteudo) > TAMANHO_MAX_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Arquivo muito grande. Máximo: {TAMANHO_MAX_MB} MB",
+        )
+
+    # Salva com nome único
+    nome_arquivo = f"evento_{evento_id}_{uuid.uuid4().hex}{sufixo}"
+    caminho = UPLOADS_DIR / nome_arquivo
+
+    # Remove imagem antiga se existir
+    if evento.imagem_url:
+        antigo = UPLOADS_DIR / Path(evento.imagem_url).name
+        if antigo.exists():
+            antigo.unlink()
+
+    caminho.write_bytes(conteudo)
+
+    evento.imagem_url = f"/uploads/{nome_arquivo}"
+    session.add(evento)
+    session.commit()
+    session.refresh(evento)
+
+    return _para_publico(session, evento, admin)

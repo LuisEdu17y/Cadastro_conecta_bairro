@@ -2,182 +2,222 @@
 
 Plataforma comunitária para divulgar eventos de bairro (esportes, cultura, lazer) e gerenciar inscrições. Inclui área pública, área do morador autenticado e painel administrativo completo.
 
-Construído com **FastAPI + SQLModel + SQLite** no backend e **HTML/CSS/JS puro** no frontend (sem build, sem dependência de bundler).
+Construído com **FastAPI + SQLModel + SQLite/PostgreSQL** no backend e **HTML/CSS/JS puro** no frontend (sem build, sem bundler).
 
 ---
 
-## ✨ O que está pronto
+## Funcionalidades
 
-### Backend (FastAPI)
-- Cadastro e login de usuários com **senha protegida por bcrypt**.
-- Autenticação via **JWT** (válido por 7 dias).
-- Dois papéis: `morador` (padrão) e `admin`.
-- CRUD completo de eventos (criar, listar, atualizar, deletar).
-- Sistema de **inscrição/cancelamento** em eventos com controle de vagas.
-- Painel administrativo: estatísticas, gestão de usuários, gestão de eventos, lista de inscritos por evento.
-- Banco SQLite criado automaticamente na primeira execução, com **admin padrão e eventos de exemplo**.
-- Documentação interativa em `/docs` (Swagger UI) e `/redoc`.
+### Backend
+- Cadastro e login com **senha protegida por bcrypt**
+- Autenticação via **JWT** (válido por 7 dias)
+- Dois papéis: `morador` (padrão) e `admin`
+- CRUD completo de eventos com controle de vagas
+- **Upload de imagem** por evento (JPG/PNG/WebP/GIF, máx. 5 MB)
+- **Filtros avançados**: modalidade, bairro, local, data inicial e final
+- Sistema de inscrição/cancelamento com notificação por e-mail
+- **Notificações por e-mail** para inscrição confirmada, cancelamento, evento atualizado e evento excluído
+- **Recuperação de senha** via e-mail (link com token de 1 hora)
+- Painel administrativo: KPIs, gestão de eventos e usuários
+- Suporte a **SQLite** (dev) e **PostgreSQL** (produção) via variável de ambiente
+- Documentação interativa em `/docs` (Swagger UI)
 
 ### Frontend
-- **Landing page** (`/`) com chamada para cadastro/login.
-- **Cadastro** (`/cadastro`) e **login** (`/login`).
-- **Área do morador** (`/app`): feed de eventos, filtros por modalidade, inscrição com um toque, aba "Meus eventos", perfil.
-- **Painel admin** (`/admin`): dashboard com KPIs e gráficos, gestão de eventos (criar/editar/deletar), gestão de usuários (promover, desativar, excluir), lista de inscritos por evento.
-- Design system próprio (verde-teal + coral) com tipografia Fraunces + Plus Jakarta Sans, responsivo, com toasts e modais de confirmação.
+- **Landing page** (`/`) com chamada para cadastro/login
+- **Cadastro** (`/cadastro`) e **login** (`/login`) com link "Esqueci minha senha"
+- **Redefinição de senha** (`/redefinir-senha`) — solicitar link e definir nova senha
+- **Área do morador** (`/app`): feed de eventos com imagens, filtros por categoria, filtros avançados (data, bairro, local), inscrição com um toque, aba "Meus eventos"
+- **Painel admin** (`/admin`): dashboard com KPIs, gestão de eventos (criar/editar/deletar + upload de imagem), gestão de usuários
+- Design responsivo — verde-teal + coral, tipografia Fraunces + Plus Jakarta Sans
 
 ---
 
-## 🚀 Como rodar localmente
+## Como rodar localmente
 
 ### Pré-requisitos
-- **Python 3.10+** instalado
-- **pip** funcionando
+- **Python 3.10+**
 
 ### Passo a passo
 
-1. **Extraia o projeto** (ou clone o repositório) e abra um terminal na pasta `conecta-bairro/`.
+**Windows:**
+```bat
+start.bat
+```
 
-2. **Crie e ative um ambiente virtual** (recomendado):
+**Linux / macOS:**
+```bash
+chmod +x start.sh
+./start.sh
+```
 
-   No Linux / macOS:
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   ```
+Ou manualmente:
 
-   No Windows (PowerShell):
-   ```powershell
-   python -m venv venv
-   venv\Scripts\Activate.ps1
-   ```
+```bash
+# 1. Criar e ativar venv
+python -m venv venv
+source venv/bin/activate          # Linux/macOS
+venv\Scripts\Activate.ps1         # Windows (PowerShell)
 
-3. **Instale as dependências**:
-   ```bash
-   pip install -r backend/requirements.txt
-   ```
+# 2. Instalar dependências
+pip install -r backend/requirements.txt
 
-4. **Rode o servidor**:
-   ```bash
-   cd backend
-   uvicorn main:app --reload
-   ```
+# 3. Subir o servidor
+cd backend
+uvicorn main:app --reload
+```
 
-   Ou use o script pronto na raiz do projeto:
-   - Linux/macOS: `./start.sh`
-   - Windows: `start.bat`
-
-5. **Abra no navegador**: <http://localhost:8000>
-
-Na primeira execução, o banco `conecta_bairro.db` é criado automaticamente, com o admin padrão e 5 eventos de exemplo.
+Acesse **http://localhost:8000**. Na primeira execução o banco é criado automaticamente com o admin padrão e 5 eventos de exemplo.
 
 ---
 
-## 🔐 Credenciais padrão
+## Credenciais padrão
 
-Um administrador é criado automaticamente na primeira execução:
+| Campo  | Valor                        |
+|--------|------------------------------|
+| E-mail | `admin@conectabairro.com`    |
+| Senha  | `admin123`                   |
 
-| Campo | Valor |
-|-------|-------|
-| E-mail | `admin@conectabairro.com` |
-| Senha  | `admin123` |
-
-> **Importante:** troque essas credenciais antes de subir para produção. Você pode mudar a senha criando outro admin pelo painel e desativando o padrão, ou alterando direto no banco.
+> Troque antes de publicar em produção.
 
 ---
 
-## 🗂️ Estrutura do projeto
+## Estrutura do projeto
 
 ```
 conecta-bairro/
 ├── backend/
-│   ├── main.py                 # Aplicação FastAPI (rotas de página + API)
-│   ├── database.py             # Engine SQLite, criação de tabelas, sessão
-│   ├── models.py               # Modelos SQLModel (Usuario, Evento, Inscricao)
-│   ├── auth.py                 # Hash bcrypt, JWT, dependências, seed inicial
+│   ├── main.py               # Aplicação FastAPI (rotas de página + API)
+│   ├── database.py           # Engine SQLite/PostgreSQL, sessão, migração
+│   ├── models.py             # Modelos SQLModel (Usuario, Evento, Inscricao, PasswordResetToken)
+│   ├── auth.py               # bcrypt, JWT, dependências, seed inicial
+│   ├── email_service.py      # Serviço SMTP para notificações e reset de senha
 │   ├── requirements.txt
-│   └── routers/
-│       ├── auth_router.py      # /auth/registro, /auth/login, /auth/me
-│       ├── eventos_router.py   # /eventos, inscrições, CRUD admin
-│       └── admin_router.py     # /admin/estatisticas, gestão de usuários
+│   ├── uploads/              # Imagens enviadas por upload (gerado em runtime)
+│   ├── routers/
+│   │   ├── auth_router.py    # /auth/* — registro, login, esqueci-senha, redefinir-senha
+│   │   ├── eventos_router.py # /eventos/* — CRUD, inscrições, upload de imagem
+│   │   └── admin_router.py   # /admin/* — estatísticas, gestão de usuários
+│   └── tests/
+│       ├── conftest.py       # Fixtures compartilhadas (banco em memória)
+│       ├── test_auth.py      # Testes de autenticação e reset de senha
+│       ├── test_eventos.py   # Testes de eventos, filtros e inscrições
+│       └── test_admin.py     # Testes do painel administrativo
 ├── frontend/
 │   ├── pages/
-│   │   ├── index.html          # Landing
-│   │   ├── login.html
-│   │   ├── cadastro.html
-│   │   ├── app.html            # Área do morador
-│   │   └── admin.html          # Painel admin
-│   ├── css/style.css           # Design system + componentes
+│   │   ├── index.html            # Landing page
+│   │   ├── login.html            # Login (com link "esqueci minha senha")
+│   │   ├── cadastro.html         # Cadastro de novo morador
+│   │   ├── app.html              # Área do morador
+│   │   ├── admin.html            # Painel admin
+│   │   └── redefinir-senha.html  # Fluxo de redefinição de senha
+│   ├── css/style.css             # Design system + componentes
 │   └── js/
-│       ├── api.js              # Wrapper da API (token, fetch)
-│       └── ui.js               # toast, modal, helpers
-├── start.sh
-├── start.bat
+│       ├── api.js                # Cliente HTTP (fetch + JWT + upload)
+│       └── ui.js                 # toast, modal, helpers
+├── pytest.ini                    # Configuração do pytest
+├── start.sh                      # Script de inicialização (Linux/macOS)
+├── start.bat                     # Script de inicialização (Windows)
 └── README.md
 ```
 
 ---
 
-## 🛠️ Principais endpoints
+## Principais endpoints
 
 ### Públicos
-- `GET  /eventos` — lista eventos (filtro opcional `?modalidade=`)
-- `GET  /eventos/{id}` — detalhe
-- `POST /auth/registro` — cria conta
-- `POST /auth/login` — devolve `access_token`
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET`  | `/eventos` | Lista eventos (filtros: `modalidade`, `bairro`, `local`, `data_inicio`, `data_fim`) |
+| `GET`  | `/eventos/{id}` | Detalhes do evento |
+| `POST` | `/auth/registro` | Cria conta |
+| `POST` | `/auth/login` | Retorna `access_token` |
+| `POST` | `/auth/esqueci-senha` | Envia e-mail de reset |
+| `POST` | `/auth/redefinir-senha` | Define nova senha via token |
 
-### Autenticados (header `Authorization: Bearer <token>`)
-- `GET    /auth/me` — dados do usuário logado
-- `GET    /eventos/meus` — eventos em que estou inscrito
-- `POST   /eventos/{id}/inscrever` — inscreve
-- `DELETE /eventos/{id}/inscrever` — cancela inscrição
+### Autenticados (`Authorization: Bearer <token>`)
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET`    | `/auth/me` | Dados do usuário logado |
+| `GET`    | `/eventos/meus` | Eventos inscritos |
+| `POST`   | `/eventos/{id}/inscrever` | Confirma presença |
+| `DELETE` | `/eventos/{id}/inscrever` | Cancela inscrição |
 
 ### Apenas admin
-- `POST   /eventos` — cria evento
-- `PUT    /eventos/{id}` — atualiza
-- `DELETE /eventos/{id}` — exclui
-- `GET    /admin/estatisticas` — KPIs e agregados
-- `GET    /admin/usuarios` — lista usuários
-- `PUT    /admin/usuarios/{id}` — altera role/ativo
-- `DELETE /admin/usuarios/{id}` — exclui usuário
-- `GET    /admin/eventos/{id}/inscritos` — lista inscritos no evento
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `POST`   | `/eventos` | Cria evento |
+| `PUT`    | `/eventos/{id}` | Atualiza evento (notifica inscritos) |
+| `DELETE` | `/eventos/{id}` | Exclui evento (notifica inscritos) |
+| `POST`   | `/eventos/{id}/imagem` | Upload de imagem (multipart/form-data) |
+| `GET`    | `/admin/estatisticas` | KPIs do dashboard |
+| `GET`    | `/admin/usuarios` | Lista usuários |
+| `PUT`    | `/admin/usuarios/{id}` | Altera role/ativo |
+| `DELETE` | `/admin/usuarios/{id}` | Remove usuário |
+| `GET`    | `/admin/eventos/{id}/inscritos` | Lista inscritos |
 
-Documentação interativa completa em <http://localhost:8000/docs>.
+Documentação interativa completa em **http://localhost:8000/docs**.
 
 ---
 
-## 🔒 Sobre segurança
+## Testes
 
-- Senhas **nunca** são armazenadas em texto puro — apenas o hash bcrypt.
-- Tokens JWT assinados com chave secreta. **Em produção**, defina a variável de ambiente `JWT_SECRET`:
+```bash
+# Na raiz do projeto (venv ativado)
+pytest -v
+```
+
+38 testes cobrindo autenticação, eventos e painel admin. Roda com banco SQLite em memória — sem efeitos colaterais.
+
+---
+
+## Configuração de e-mail
+
+Configure as variáveis de ambiente para habilitar o envio real de e-mails:
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seu@email.com
+SMTP_PASS=sua-app-password
+EMAIL_FROM=Conecta Bairro <seu@email.com>
+```
+
+Sem configuração, os e-mails são apenas logados no terminal (modo desenvolvimento).
+
+> **Gmail**: use uma [App Password](https://myaccount.google.com/apppasswords) — não a senha da conta.
+
+---
+
+## PostgreSQL em produção
+
+Defina a variável de ambiente `DATABASE_URL` para usar PostgreSQL:
+
+```bash
+DATABASE_URL=postgresql://usuario:senha@host:5432/nome_do_banco
+```
+
+Sem ela, o SQLite local é usado automaticamente.
+
+### Deploy (Render / Railway / Fly.io)
+
+| Campo | Valor |
+|-------|-------|
+| Comando de build | `pip install -r backend/requirements.txt` |
+| Comando de start | `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT` |
+| Variáveis | `DATABASE_URL`, `JWT_SECRET`, `SMTP_*` |
+
+---
+
+## Segurança
+
+- Senhas armazenadas apenas como **hash bcrypt** (nunca em texto puro)
+- Tokens JWT assinados — defina `JWT_SECRET` em produção:
   ```bash
-  export JWT_SECRET="uma-chave-bem-longa-e-aleatoria"
+  JWT_SECRET=uma-chave-longa-e-aleatoria-aqui
   ```
-  Caso contrário, um valor de fallback inseguro é usado (apenas para desenvolvimento).
-- CORS está liberado (`*`) para facilitar o desenvolvimento. Restrinja antes de publicar.
+- Tokens de reset de senha expiram em **1 hora** e são invalidados após uso
+- CORS liberado (`*`) para dev — restrinja em produção
 
 ---
 
-## 🚢 Deploy
 
-O projeto é uma única aplicação ASGI — backend e frontend rodam no mesmo processo `uvicorn`. Para subir em serviços como Render, Railway ou Fly.io:
-
-1. Comando de build: `pip install -r backend/requirements.txt`
-2. Comando de start: `cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT`
-3. Configure a variável de ambiente `JWT_SECRET`.
-
-> O banco SQLite vive em arquivo local. Em produção de verdade, considere migrar para PostgreSQL — basta trocar a `DATABASE_URL` em `database.py`.
-
----
-
-## 📋 Próximos passos sugeridos
-
-- Upload de imagem por evento
-- Notificações por e-mail para inscritos
-- Filtros mais ricos (data, bairro, distância)
-- Migração para PostgreSQL em produção
-- Recuperação de senha via e-mail
-- Testes automatizados (pytest + httpx)
-
----
-
-Feito com carinho para a comunidade. 🌿

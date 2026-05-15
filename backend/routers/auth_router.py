@@ -1,13 +1,18 @@
 """
 routers/auth_router.py
 ----------------------
-Rotas públicas de autenticação:
-- POST /auth/registro → cria um novo morador
-- POST /auth/login    → retorna token JWT
-- GET  /auth/me       → dados do usuário autenticado
+Rotas de autenticação:
+- POST /auth/registro          → cria um novo morador
+- POST /auth/login             → retorna token JWT
+- GET  /auth/me                → dados do usuário autenticado
+- POST /auth/esqueci-senha     → envia e-mail com link de reset
+- POST /auth/redefinir-senha   → valida token e define nova senha
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import secrets
+from datetime import datetime, timedelta
+
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlmodel import Session, select
 
 from database import get_session
@@ -17,6 +22,9 @@ from models import (
     UsuarioPublic,
     LoginRequest,
     TokenResponse,
+    PasswordResetToken,
+    EsqueciSenhaRequest,
+    RedefinirSenhaRequest,
 )
 from auth import (
     hash_senha,
@@ -24,14 +32,16 @@ from auth import (
     criar_token,
     usuario_atual,
 )
+from email_service import email_redefinir_senha
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
+
+RESET_TOKEN_HORAS = 1
 
 
 @router.post("/registro", response_model=UsuarioPublic, status_code=201)
 def registrar(dados: UsuarioCreate, session: Session = Depends(get_session)):
     """Cadastra um novo morador. Email precisa ser único."""
-    # Verifica se o email já existe
     existente = session.exec(
         select(Usuario).where(Usuario.email == dados.email)
     ).first()
@@ -41,7 +51,6 @@ def registrar(dados: UsuarioCreate, session: Session = Depends(get_session)):
             detail="Este e-mail já está cadastrado",
         )
 
-    # Validação simples de senha
     if len(dados.senha) < 6:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -82,13 +91,94 @@ def login(dados: LoginRequest, session: Session = Depends(get_session)):
             detail="Conta desativada. Procure o administrador.",
         )
 
-    # 'sub' é o claim padrão JWT para identidade do usuário
     token = criar_token({"sub": str(usuario.id), "role": usuario.role})
-
     return TokenResponse(access_token=token, usuario=usuario)
 
 
 @router.get("/me", response_model=UsuarioPublic)
 def quem_sou_eu(usuario: Usuario = Depends(usuario_atual)):
-    """Retorna os dados do usuário autenticado (útil pro frontend após reload)."""
+    """Retorna os dados do usuário autenticado."""
     return usuario
+
+
+@router.post("/esqueci-senha", status_code=202)
+async def esqueci_senha(
+    dados: EsqueciSenhaRequest,
+    request: Request,
+    session: Session = Depends(get_session),
+):
+    """
+    Gera um token de reset e envia e-mail com o link.
+    Sempre retorna 202 (não revela se o e-mail existe ou não).
+    """
+    usuario = session.exec(
+        select(Usuario).where(Usuario.email == dados.email.strip().lower())
+    ).first()
+
+    if usuario and usuario.ativo:
+        # Invalida tokens anteriores deste usuário
+        tokens_antigos = session.exec(
+            select(PasswordResetToken).where(
+                PasswordResetToken.usuario_id == usuario.id,
+                PasswordResetToken.usado == False,
+            )
+        ).all()
+        for t in tokens_antigos:
+            t.usado = True
+            session.add(t)
+
+        token_str = secrets.token_urlsafe(32)
+        token = PasswordResetToken(
+            token=token_str,
+            usuario_id=usuario.id,
+            expira_em=datetime.utcnow() + timedelta(hours=RESET_TOKEN_HORAS),
+        )
+        session.add(token)
+        session.commit()
+
+        # Monta o link de reset (usa a origin da requisição ou fallback)
+        base_url = str(request.base_url).rstrip("/")
+        link = f"{base_url}/redefinir-senha?token={token_str}"
+
+        await email_redefinir_senha(usuario.email, usuario.nome, link)
+
+    return {"mensagem": "Se este e-mail estiver cadastrado, você receberá as instruções em breve."}
+
+
+@router.post("/redefinir-senha")
+def redefinir_senha(
+    dados: RedefinirSenhaRequest,
+    session: Session = Depends(get_session),
+):
+    """Valida o token de reset e define a nova senha."""
+    token = session.exec(
+        select(PasswordResetToken).where(PasswordResetToken.token == dados.token)
+    ).first()
+
+    if not token or token.usado or token.expira_em < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido ou expirado",
+        )
+
+    if len(dados.nova_senha) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A senha precisa ter no mínimo 6 caracteres",
+        )
+
+    usuario = session.get(Usuario, token.usuario_id)
+    if not usuario or not usuario.ativo:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Usuário não encontrado ou desativado",
+        )
+
+    usuario.senha_hash = hash_senha(dados.nova_senha)
+    token.usado = True
+
+    session.add(usuario)
+    session.add(token)
+    session.commit()
+
+    return {"mensagem": "Senha redefinida com sucesso. Faça login com a nova senha."}

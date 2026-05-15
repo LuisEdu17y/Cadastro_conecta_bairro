@@ -3,10 +3,11 @@ models.py
 ---------
 Modelos de dados da aplicação Conecta Bairro.
 
-Três entidades principais:
-- Usuario     → moradores e administradores cadastrados
-- Evento      → eventos comunitários
-- Inscricao   → relação N:N entre usuários e eventos (presença confirmada)
+Entidades:
+- Usuario            → moradores e administradores cadastrados
+- Evento             → eventos comunitários
+- Inscricao          → relação N:N entre usuários e eventos
+- PasswordResetToken → tokens temporários para redefinição de senha
 
 Cada modelo tem variações:
 - *Base    → campos compartilhados
@@ -33,16 +34,15 @@ class UsuarioBase(SQLModel):
 
 
 class Usuario(UsuarioBase, table=True):
-    """Tabela real de usuários. NUNCA retornar este modelo direto pela API
-    (expõe o hash da senha). Use UsuarioPublic."""
+    """Tabela real de usuários. NUNCA retornar este modelo direto pela API."""
     id: Optional[int] = Field(default=None, primary_key=True)
     senha_hash: str
     role: str = Field(default="morador")  # 'morador' ou 'admin'
     criado_em: datetime = Field(default_factory=datetime.utcnow)
     ativo: bool = Field(default=True)
 
-    # Relação reversa: eventos em que o usuário está inscrito
     inscricoes: list["Inscricao"] = Relationship(back_populates="usuario")
+    tokens_reset: list["PasswordResetToken"] = Relationship(back_populates="usuario")
 
 
 class UsuarioCreate(UsuarioBase):
@@ -75,8 +75,11 @@ class EventoBase(SQLModel):
     modalidade: str          # Futebol, Zumba, Capoeira, Outros...
     cor: str = "blue"        # blue, orange, pink, green, purple
     local: str = "Quadra Poliesportiva"
-    data: str                # "Sábado, 09:00" ou "2026-05-20 09:00"
-    vagas: int = 30          # limite de inscrições; 0 = ilimitado
+    bairro: Optional[str] = None          # bairro onde ocorre o evento
+    data: str                             # string de exibição ("Sábado, 09:00")
+    data_inicio: Optional[datetime] = None  # datetime para filtragem
+    vagas: int = 30                       # 0 = ilimitado
+    imagem_url: Optional[str] = None      # caminho da imagem do evento
 
 
 class Evento(EventoBase, table=True):
@@ -100,15 +103,18 @@ class EventoUpdate(SQLModel):
     modalidade: Optional[str] = None
     cor: Optional[str] = None
     local: Optional[str] = None
+    bairro: Optional[str] = None
     data: Optional[str] = None
+    data_inicio: Optional[datetime] = None
     vagas: Optional[int] = None
+    imagem_url: Optional[str] = None
 
 
 class EventoPublic(EventoBase):
     id: int
     criado_em: datetime
-    total_inscritos: int = 0   # campo computado e preenchido nos endpoints
-    inscrito: bool = False     # se o usuário atual está inscrito
+    total_inscritos: int = 0
+    inscrito: bool = False
 
 
 # ============================================================
@@ -126,6 +132,22 @@ class Inscricao(SQLModel, table=True):
 
 
 # ============================================================
+# RECUPERAÇÃO DE SENHA
+# ============================================================
+
+class PasswordResetToken(SQLModel, table=True):
+    """Token temporário para redefinição de senha (válido por 1 hora)."""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    token: str = Field(index=True, unique=True)
+    usuario_id: int = Field(foreign_key="usuario.id")
+    criado_em: datetime = Field(default_factory=datetime.utcnow)
+    expira_em: datetime
+    usado: bool = Field(default=False)
+
+    usuario: Optional[Usuario] = Relationship(back_populates="tokens_reset")
+
+
+# ============================================================
 # AUTENTICAÇÃO (payloads, não vão pro banco)
 # ============================================================
 
@@ -138,3 +160,12 @@ class TokenResponse(SQLModel):
     access_token: str
     token_type: str = "bearer"
     usuario: UsuarioPublic
+
+
+class EsqueciSenhaRequest(SQLModel):
+    email: str
+
+
+class RedefinirSenhaRequest(SQLModel):
+    token: str
+    nova_senha: str
