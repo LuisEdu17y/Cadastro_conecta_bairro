@@ -404,7 +404,12 @@
                         <span class="vagas-info ${cheio ? 'is-cheio' : ''}">
                             <i class="bi bi-people"></i> ${vagasTxt}
                         </span>
-                        ${acaoBtn}
+                        <div style="display:flex;gap:0.4rem;align-items:center;">
+                            <button class="btn-cb btn-cb--sm btn-cb--ghost" onclick="abrirComentarios(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}')">
+                                <i class="bi bi-chat"></i>
+                            </button>
+                            ${acaoBtn}
+                        </div>
                     </div>
                 </article>
             `;
@@ -598,6 +603,99 @@
                 if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
             });
         }
+
+        // ------------------------------------------------------------
+        // Comentários
+        // ------------------------------------------------------------
+        window.abrirComentarios = async function(eventoId, tituloEvento) {
+            const bd = document.createElement('div');
+            bd.className = 'cb-modal-backdrop';
+            bd.innerHTML = `
+                <div class="cb-modal" style="max-height:85vh;display:flex;flex-direction:column;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                        <h3 style="margin:0;font-size:1.05rem;">💬 ${escapeHTML(tituloEvento)}</h3>
+                        <button data-close style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--ink-500);">×</button>
+                    </div>
+                    <div id="lista-comentarios" style="flex:1;overflow-y:auto;margin-bottom:1rem;">
+                        <div class="cb-spinner"></div>
+                    </div>
+                    ${API.isAuthenticated() ? `
+                    <form id="form-comentario" style="display:flex;gap:0.5rem;">
+                        <input id="input-comentario" placeholder="Escreva um comentário..." maxlength="500"
+                            style="flex:1;padding:0.55rem 0.8rem;border:1.5px solid var(--ink-200);border-radius:99px;font-size:0.9rem;">
+                        <button type="submit" class="btn-cb btn-cb--primary btn-cb--sm" style="border-radius:99px;padding:0.55rem 1rem;">
+                            <i class="bi bi-send"></i>
+                        </button>
+                    </form>` : `<p style="text-align:center;color:var(--ink-400);font-size:0.85rem;">
+                        <a href="/login">Entre</a> para comentar
+                    </p>`}
+                </div>
+            `;
+            document.body.appendChild(bd);
+            bd.addEventListener('click', e => { if (e.target === bd || e.target.closest('[data-close]')) bd.remove(); });
+
+            const lista = bd.querySelector('#lista-comentarios');
+
+            async function renderizarComentarios() {
+                try {
+                    const comentarios = await API.get(`/eventos/${eventoId}/comentarios`);
+                    if (comentarios.length === 0) {
+                        lista.innerHTML = '<p style="text-align:center;color:var(--ink-400);padding:1.5rem 0;">Nenhum comentário ainda. Seja o primeiro!</p>';
+                        return;
+                    }
+                    lista.innerHTML = comentarios.map(c => `
+                        <div style="padding:0.7rem 0;border-bottom:1px solid var(--ink-100);display:flex;gap:0.6rem;align-items:flex-start;">
+                            <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-500);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;">
+                                ${escapeHTML(c.usuario_nome.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase())}
+                            </div>
+                            <div style="flex:1;min-width:0;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
+                                    <strong style="font-size:0.85rem;">${escapeHTML(c.usuario_nome)}</strong>
+                                    <span style="font-size:0.75rem;color:var(--ink-400);white-space:nowrap;">
+                                        ${new Date(c.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
+                                    </span>
+                                </div>
+                                <p style="margin:0.2rem 0 0;font-size:0.9rem;color:var(--ink-700);word-break:break-word;">${escapeHTML(c.texto)}</p>
+                            </div>
+                            ${c.pode_deletar ? `<button onclick="deletarComentario(${c.id}, this)" style="background:none;border:none;color:var(--ink-300);cursor:pointer;padding:0.2rem;flex-shrink:0;" title="Remover">
+                                <i class="bi bi-trash3" style="font-size:0.8rem;"></i>
+                            </button>` : ''}
+                        </div>
+                    `).join('');
+                } catch {
+                    lista.innerHTML = '<p style="text-align:center;color:var(--ink-400);">Erro ao carregar comentários.</p>';
+                }
+            }
+
+            await renderizarComentarios();
+
+            const form = bd.querySelector('#form-comentario');
+            if (form) {
+                form.addEventListener('submit', async e => {
+                    e.preventDefault();
+                    const input = bd.querySelector('#input-comentario');
+                    const texto = input.value.trim();
+                    if (!texto) return;
+                    try {
+                        await API.post(`/eventos/${eventoId}/comentarios`, { texto });
+                        input.value = '';
+                        await renderizarComentarios();
+                        lista.scrollTop = lista.scrollHeight;
+                    } catch (err) {
+                        toast(err.message || 'Erro ao comentar', 'error');
+                    }
+                });
+            }
+        };
+
+        window.deletarComentario = async function(id, btn) {
+            try {
+                await API.delete(`/comentarios/${id}`);
+                btn.closest('div[style]').remove();
+            } catch (err) {
+                toast(err.message || 'Erro ao remover', 'error');
+            }
+        };
 
         // ------------------------------------------------------------
         // Boot

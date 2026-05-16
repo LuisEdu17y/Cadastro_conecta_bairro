@@ -157,6 +157,31 @@ class PasswordResetToken(SQLModel, table=True):
 
 
 # ============================================================
+# COMENTÁRIO
+# ============================================================
+
+class Comentario(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    texto: str = Field(max_length=500)
+    evento_id: int = Field(foreign_key="evento.id")
+    usuario_id: int = Field(foreign_key="usuario.id")
+    criado_em: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ComentarioCreate(SQLModel):
+    texto: str
+
+
+class ComentarioPublic(SQLModel):
+    id: int
+    texto: str
+    criado_em: datetime
+    usuario_id: int
+    usuario_nome: str
+    pode_deletar: bool = False
+
+
+# ============================================================
 # AUTENTICAÇÃO (payloads, não vão pro banco)
 # ============================================================
 

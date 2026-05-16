@@ -37,6 +37,7 @@ from auth import garantir_admin_padrao
 from routers.auth_router import router as auth_router
 from routers.eventos_router import router as eventos_router
 from routers.admin_router import router as admin_router
+from routers.comentarios_router import router as comentarios_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
@@ -79,6 +80,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(eventos_router)
 app.include_router(admin_router)
+app.include_router(comentarios_router)
 
 # Servir imagens de eventos enviadas por upload
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
