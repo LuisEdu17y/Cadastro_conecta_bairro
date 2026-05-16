@@ -39,6 +39,25 @@ def criar_banco() -> None:
     """Cria todas as tabelas e roda migrações de colunas novas."""
     SQLModel.metadata.create_all(engine)
     _migrar_colunas()
+    if DATABASE_URL:
+        _stamp_alembic_if_needed()
+
+
+def _stamp_alembic_if_needed() -> None:
+    """
+    Em PostgreSQL, as tabelas são criadas pelo create_all (não pelo Alembic).
+    Se alembic_version não existir, faz stamp head para que migrações futuras
+    funcionem corretamente.
+    """
+    from sqlalchemy import inspect as sa_inspect
+    from alembic.config import Config
+    from alembic import command
+
+    insp = sa_inspect(engine)
+    if "alembic_version" not in insp.get_table_names():
+        cfg = Config(str(BASE_DIR / "alembic.ini"))
+        cfg.set_main_option("sqlalchemy.url", str(engine.url))
+        command.stamp(cfg, "head")
 
 
 def _migrar_colunas() -> None:
