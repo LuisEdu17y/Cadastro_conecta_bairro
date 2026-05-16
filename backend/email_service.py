@@ -1,49 +1,59 @@
 """
 email_service.py
 ----------------
-Serviço de envio de e-mails via SMTP.
+Envio de e-mails. Duas opções (em ordem de preferência):
 
-Configure as variáveis de ambiente para habilitar:
-    SMTP_HOST   (ex: smtp.gmail.com)
-    SMTP_PORT   (ex: 587)
-    SMTP_USER   (seu e-mail)
-    SMTP_PASS   (senha ou app password)
-    EMAIL_FROM  (remetente exibido — padrão: SMTP_USER)
+1. RESEND_API_KEY definida → usa API HTTP do Resend (recomendado)
+2. SMTP_HOST + SMTP_USER + SMTP_PASS → usa SMTP clássico
 
-Se as variáveis não estiverem configuradas, os e-mails são apenas logados
-no terminal (útil para desenvolvimento sem conta SMTP real).
+Configure no Render (ou .env local):
+    RESEND_API_KEY   chave da API do Resend (começa com re_...)
+    EMAIL_FROM       remetente (ex: onboarding@resend.dev)
+    --- ou ---
+    SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / EMAIL_FROM
 """
 
 import os
+import json
 import smtplib
-import asyncio
 import logging
+import urllib.request
+import urllib.error
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 logger = logging.getLogger(__name__)
 
+
+# ──────────────────────────────────────────────
+# Envio
+# ──────────────────────────────────────────────
+
 def _enviar_sync(para: str, assunto: str, html: str) -> None:
-    """Envia e-mail de forma síncrona (chamado em thread separada)."""
-    host = os.getenv("SMTP_HOST", "")
-    port = int(os.getenv("SMTP_PORT", "587"))
-    user = os.getenv("SMTP_USER", "")
+    resend_key = os.getenv("RESEND_API_KEY", "")
+    if resend_key:
+        _via_resend_api(para, assunto, html, resend_key)
+        return
+
+    host  = os.getenv("SMTP_HOST", "")
+    port  = int(os.getenv("SMTP_PORT", "587"))
+    user  = os.getenv("SMTP_USER", "")
     senha = os.getenv("SMTP_PASS", "")
-    remetente = os.getenv("EMAIL_FROM", user)
 
     if not (host and user and senha):
         logger.info(
-            "[EMAIL - sem SMTP configurado]\n"
+            "[EMAIL - sem configuração]\n"
             f"  Para:    {para}\n"
             f"  Assunto: {assunto}\n"
             f"  Corpo:   {html[:200]}..."
         )
         return
 
+    remetente = os.getenv("EMAIL_FROM", user)
     msg = MIMEMultipart("alternative")
     msg["Subject"] = assunto
-    msg["From"] = remetente
-    msg["To"] = para
+    msg["From"]    = remetente
+    msg["To"]      = para
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     TIMEOUT = 15
@@ -58,23 +68,57 @@ def _enviar_sync(para: str, assunto: str, html: str) -> None:
             smtp.login(user, senha)
             smtp.sendmail(remetente, [para], msg.as_string())
 
+    logger.info(f"[EMAIL SMTP] Enviado para {para}: {assunto}")
 
-async def enviar_email(para: str, assunto: str, html: str) -> None:
-    """Dispara o envio em background — não bloqueia a resposta HTTP."""
-    asyncio.create_task(
-        asyncio.to_thread(_enviar_sync_seguro, para, assunto, html)
+
+def _via_resend_api(para: str, assunto: str, html: str, api_key: str) -> None:
+    remetente = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
+    payload = json.dumps({
+        "from":    remetente,
+        "to":      [para],
+        "subject": assunto,
+        "html":    html,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type":  "application/json",
+        },
+        method="POST",
     )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resultado = json.loads(resp.read())
+            logger.info(f"[EMAIL Resend] Enviado para {para} — id: {resultado.get('id')}")
+            print(f"[EMAIL Resend OK] para={para} id={resultado.get('id')}", flush=True)
+    except urllib.error.HTTPError as exc:
+        corpo_erro = exc.read().decode("utf-8", errors="replace")
+        print(f"[EMAIL Resend ERRO] status={exc.code} body={corpo_erro}", flush=True)
+        raise
 
 
 def _enviar_sync_seguro(para: str, assunto: str, html: str) -> None:
     try:
         _enviar_sync(para, assunto, html)
     except Exception as exc:
+        print(f"[EMAIL FALHA] para={para} erro={exc}", flush=True)
         logger.error(f"Falha ao enviar e-mail para {para}: {exc}")
 
 
 # ──────────────────────────────────────────────
-# Templates de e-mail
+# Interface assíncrona (fire-and-forget)
+# ──────────────────────────────────────────────
+
+def enviar_email_bg(background_tasks, para: str, assunto: str, html: str) -> None:
+    """Registra envio como BackgroundTask do FastAPI (retorna imediatamente)."""
+    background_tasks.add_task(_enviar_sync_seguro, para, assunto, html)
+
+
+# ──────────────────────────────────────────────
+# Templates
 # ──────────────────────────────────────────────
 
 def _base_template(titulo: str, corpo: str) -> str:
@@ -93,12 +137,10 @@ def _base_template(titulo: str, corpo: str) -> str:
     """
 
 
-async def email_inscricao_confirmada(
-    para: str, nome_usuario: str, titulo_evento: str, local: str, data: str
-) -> None:
-    corpo = f"""
-    <p>Olá, <strong>{nome_usuario}</strong>! 🎉</p>
-    <p>Sua inscrição no evento <strong>{titulo_evento}</strong> foi confirmada.</p>
+def _html_inscricao_confirmada(nome: str, titulo: str, local: str, data: str) -> str:
+    return _base_template("Inscrição Confirmada!", f"""
+    <p>Olá, <strong>{nome}</strong>! 🎉</p>
+    <p>Sua inscrição no evento <strong>{titulo}</strong> foi confirmada.</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <tr><td style="padding:8px;color:#555;width:80px;">📍 Local</td>
           <td style="padding:8px;"><strong>{local}</strong></td></tr>
@@ -107,33 +149,21 @@ async def email_inscricao_confirmada(
           <td style="padding:8px;"><strong>{data}</strong></td></tr>
     </table>
     <p>Nos vemos lá! 🌿</p>
-    """
-    await enviar_email(
-        para, f"Inscrição confirmada: {titulo_evento}",
-        _base_template("Inscrição Confirmada!", corpo)
-    )
+    """)
 
 
-async def email_inscricao_cancelada(
-    para: str, nome_usuario: str, titulo_evento: str
-) -> None:
-    corpo = f"""
-    <p>Olá, <strong>{nome_usuario}</strong>.</p>
-    <p>Sua inscrição no evento <strong>{titulo_evento}</strong> foi cancelada com sucesso.</p>
+def _html_inscricao_cancelada(nome: str, titulo: str) -> str:
+    return _base_template("Inscrição Cancelada", f"""
+    <p>Olá, <strong>{nome}</strong>.</p>
+    <p>Sua inscrição no evento <strong>{titulo}</strong> foi cancelada com sucesso.</p>
     <p>Se mudar de ideia, você pode se inscrever novamente pelo app.</p>
-    """
-    await enviar_email(
-        para, f"Inscrição cancelada: {titulo_evento}",
-        _base_template("Inscrição Cancelada", corpo)
-    )
+    """)
 
 
-async def email_evento_atualizado(
-    para: str, nome_usuario: str, titulo_evento: str, local: str, data: str
-) -> None:
-    corpo = f"""
-    <p>Olá, <strong>{nome_usuario}</strong>!</p>
-    <p>O evento <strong>{titulo_evento}</strong> em que você está inscrito foi atualizado.</p>
+def _html_evento_atualizado(nome: str, titulo: str, local: str, data: str) -> str:
+    return _base_template("Evento Atualizado", f"""
+    <p>Olá, <strong>{nome}</strong>!</p>
+    <p>O evento <strong>{titulo}</strong> em que você está inscrito foi atualizado.</p>
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">
       <tr><td style="padding:8px;color:#555;width:80px;">📍 Local</td>
           <td style="padding:8px;"><strong>{local}</strong></td></tr>
@@ -142,45 +172,79 @@ async def email_evento_atualizado(
           <td style="padding:8px;"><strong>{data}</strong></td></tr>
     </table>
     <p>Acesse o app para ver todos os detalhes atualizados.</p>
-    """
-    await enviar_email(
-        para, f"Evento atualizado: {titulo_evento}",
-        _base_template("Evento Atualizado", corpo)
-    )
+    """)
 
 
-async def email_evento_cancelado(
-    para: str, nome_usuario: str, titulo_evento: str
-) -> None:
-    corpo = f"""
-    <p>Olá, <strong>{nome_usuario}</strong>.</p>
-    <p>Infelizmente o evento <strong>{titulo_evento}</strong> foi cancelado pelo organizador.</p>
+def _html_evento_cancelado(nome: str, titulo: str) -> str:
+    return _base_template("Evento Cancelado", f"""
+    <p>Olá, <strong>{nome}</strong>.</p>
+    <p>Infelizmente o evento <strong>{titulo}</strong> foi cancelado pelo organizador.</p>
     <p>Fique de olho nos próximos eventos na plataforma!</p>
-    """
-    await enviar_email(
-        para, f"Evento cancelado: {titulo_evento}",
-        _base_template("Evento Cancelado", corpo)
-    )
+    """)
 
 
-async def email_redefinir_senha(
-    para: str, nome_usuario: str, link_reset: str
-) -> None:
-    corpo = f"""
-    <p>Olá, <strong>{nome_usuario}</strong>!</p>
+def _html_redefinir_senha(nome: str, link: str) -> str:
+    return _base_template("Redefinição de Senha", f"""
+    <p>Olá, <strong>{nome}</strong>!</p>
     <p>Recebemos um pedido de redefinição de senha para sua conta.</p>
     <p style="text-align:center;margin:24px 0;">
-      <a href="{link_reset}"
+      <a href="{link}"
          style="background:#0d9488;color:#fff;padding:12px 24px;border-radius:8px;
                 text-decoration:none;font-weight:bold;">
         Redefinir minha senha
       </a>
     </p>
     <p style="color:#888;font-size:13px;">
-      Este link expira em <strong>1 hora</strong>. Se você não solicitou isso, ignore este e-mail.
+      Este link expira em <strong>1 hora</strong>.
+      Se você não solicitou isso, ignore este e-mail.
     </p>
-    """
-    await enviar_email(
-        para, "Redefinição de senha — Conecta Bairro",
-        _base_template("Redefinição de Senha", corpo)
-    )
+    """)
+
+
+# ──────────────────────────────────────────────
+# Funções públicas (compatíveis com routers)
+# ──────────────────────────────────────────────
+
+async def email_inscricao_confirmada(para, nome, titulo, local, data):
+    import asyncio
+    asyncio.create_task(asyncio.to_thread(
+        _enviar_sync_seguro, para,
+        f"Inscrição confirmada: {titulo}",
+        _html_inscricao_confirmada(nome, titulo, local, data)
+    ))
+
+
+async def email_inscricao_cancelada(para, nome, titulo):
+    import asyncio
+    asyncio.create_task(asyncio.to_thread(
+        _enviar_sync_seguro, para,
+        f"Inscrição cancelada: {titulo}",
+        _html_inscricao_cancelada(nome, titulo)
+    ))
+
+
+async def email_evento_atualizado(para, nome, titulo, local, data):
+    import asyncio
+    asyncio.create_task(asyncio.to_thread(
+        _enviar_sync_seguro, para,
+        f"Evento atualizado: {titulo}",
+        _html_evento_atualizado(nome, titulo, local, data)
+    ))
+
+
+async def email_evento_cancelado(para, nome, titulo):
+    import asyncio
+    asyncio.create_task(asyncio.to_thread(
+        _enviar_sync_seguro, para,
+        f"Evento cancelado: {titulo}",
+        _html_evento_cancelado(nome, titulo)
+    ))
+
+
+async def email_redefinir_senha(para, nome, link):
+    import asyncio
+    asyncio.create_task(asyncio.to_thread(
+        _enviar_sync_seguro, para,
+        "Redefinição de senha — Conecta Bairro",
+        _html_redefinir_senha(nome, link)
+    ))
