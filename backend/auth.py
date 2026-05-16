@@ -129,25 +129,40 @@ def usuario_atual_opcional(
 
 # --------- Bootstrap: cria admin padrão se não existir ---------
 
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@conectabairro.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+
+
 def garantir_admin_padrao(session: Session) -> None:
     """
     Garante que existe um admin no banco e popula alguns eventos de exemplo
-    na primeira execução. Credenciais padrão:
-        email:  admin@conectabairro.com
-        senha:  admin123
+    na primeira execução.
+
+    Credenciais configuráveis via variáveis de ambiente:
+        ADMIN_EMAIL     (padrão: admin@conectabairro.com)
+        ADMIN_PASSWORD  (padrão: admin123 — troque em produção!)
+
+    Se o admin já existir e ADMIN_PASSWORD estiver definida no ambiente,
+    atualiza a senha para o valor configurado.
     """
     from models import Evento  # import local para evitar ciclo
 
     existe = session.exec(
-        select(Usuario).where(Usuario.email == "admin@conectabairro.com")
+        select(Usuario).where(Usuario.email == ADMIN_EMAIL)
     ).first()
+
     if existe:
+        # Atualiza senha se ADMIN_PASSWORD foi explicitamente configurada
+        if os.getenv("ADMIN_PASSWORD"):
+            existe.senha_hash = hash_senha(ADMIN_PASSWORD)
+            session.add(existe)
+            session.commit()
         return
 
     admin = Usuario(
         nome="Administrador",
-        email="admin@conectabairro.com",
-        senha_hash=hash_senha("admin123"),
+        email=ADMIN_EMAIL,
+        senha_hash=hash_senha(ADMIN_PASSWORD),
         role="admin",
         bairro="Sol Nascente",
     )
