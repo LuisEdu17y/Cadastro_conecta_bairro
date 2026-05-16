@@ -6,7 +6,9 @@ routers/comentarios_router.py
 - DELETE /comentarios/{id}           → remove comentário (próprio ou admin)
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from database import get_session
@@ -25,9 +27,6 @@ def _para_publico(c: Comentario, usuario_nome: str, usuario_atual_id: Optional[i
         usuario_nome=usuario_nome,
         pode_deletar=(usuario_atual_id == c.usuario_id or is_admin),
     )
-
-
-from typing import Optional
 
 
 @router.get("/eventos/{evento_id}/comentarios", response_model=list[ComentarioPublic])
