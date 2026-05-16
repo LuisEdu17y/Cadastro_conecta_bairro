@@ -30,6 +30,11 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────
 
 def _enviar_sync(para: str, assunto: str, html: str) -> None:
+    brevo_key = os.getenv("BREVO_API_KEY", "")
+    if brevo_key:
+        _via_brevo_api(para, assunto, html, brevo_key)
+        return
+
     resend_key = os.getenv("RESEND_API_KEY", "")
     if resend_key:
         _via_resend_api(para, assunto, html, resend_key)
@@ -69,6 +74,31 @@ def _enviar_sync(para: str, assunto: str, html: str) -> None:
             smtp.sendmail(remetente, [para], msg.as_string())
 
     logger.info(f"[EMAIL SMTP] Enviado para {para}: {assunto}")
+
+
+def _via_brevo_api(para: str, assunto: str, html: str, api_key: str) -> None:
+    remetente = os.getenv("EMAIL_FROM", "")
+    payload = json.dumps({
+        "sender":      {"name": "Conecta Bairro", "email": remetente},
+        "to":          [{"email": para}],
+        "subject":     assunto,
+        "htmlContent": html,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=payload,
+        headers={"api-key": api_key, "Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resultado = json.loads(resp.read())
+            print(f"[EMAIL Brevo OK] para={para} id={resultado.get('messageId')}", flush=True)
+    except urllib.error.HTTPError as exc:
+        corpo_erro = exc.read().decode("utf-8", errors="replace")
+        print(f"[EMAIL Brevo ERRO] status={exc.code} body={corpo_erro}", flush=True)
+        raise
 
 
 def _via_resend_api(para: str, assunto: str, html: str, api_key: str) -> None:
