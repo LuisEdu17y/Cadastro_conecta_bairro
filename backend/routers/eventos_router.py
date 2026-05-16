@@ -371,7 +371,15 @@ async def upload_imagem(
     if cdn.disponivel():
         # Produção: Cloudinary (persistente entre deploys)
         public_id = cdn.public_id_do_evento(evento_id)
-        evento.imagem_url = cdn.fazer_upload(conteudo, public_id)
+        try:
+            evento.imagem_url = cdn.fazer_upload(conteudo, public_id)
+        except Exception as exc:
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=502,
+                detail=f"Erro ao enviar imagem para Cloudinary: {exc}",
+            )
     else:
         # Desenvolvimento: filesystem local
         nome_arquivo = f"evento_{evento_id}_{uuid.uuid4().hex}{sufixo}"

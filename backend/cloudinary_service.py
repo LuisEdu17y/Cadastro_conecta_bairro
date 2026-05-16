@@ -13,7 +13,6 @@ Se não estiverem definidas, o upload continua usando a pasta /uploads local.
 """
 
 import os
-from io import BytesIO
 
 _pronto = False
 
@@ -46,7 +45,7 @@ def fazer_upload(conteudo: bytes, public_id: str) -> str:
     import cloudinary.uploader
     _configurar()
     resultado = cloudinary.uploader.upload(
-        BytesIO(conteudo),
+        conteudo,
         public_id=public_id,
         overwrite=True,
         resource_type="image",
