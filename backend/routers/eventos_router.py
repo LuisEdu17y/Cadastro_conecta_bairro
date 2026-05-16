@@ -366,19 +366,22 @@ async def upload_imagem(
             detail=f"Arquivo muito grande. Máximo: {TAMANHO_MAX_MB} MB",
         )
 
-    # Salva com nome único
-    nome_arquivo = f"evento_{evento_id}_{uuid.uuid4().hex}{sufixo}"
-    caminho = UPLOADS_DIR / nome_arquivo
+    import cloudinary_service as cdn
 
-    # Remove imagem antiga se existir
-    if evento.imagem_url:
-        antigo = UPLOADS_DIR / Path(evento.imagem_url).name
-        if antigo.exists():
-            antigo.unlink()
-
-    caminho.write_bytes(conteudo)
-
-    evento.imagem_url = f"/uploads/{nome_arquivo}"
+    if cdn.disponivel():
+        # Produção: Cloudinary (persistente entre deploys)
+        public_id = cdn.public_id_do_evento(evento_id)
+        evento.imagem_url = cdn.fazer_upload(conteudo, public_id)
+    else:
+        # Desenvolvimento: filesystem local
+        nome_arquivo = f"evento_{evento_id}_{uuid.uuid4().hex}{sufixo}"
+        caminho = UPLOADS_DIR / nome_arquivo
+        if evento.imagem_url and evento.imagem_url.startswith("/uploads/"):
+            antigo = UPLOADS_DIR / Path(evento.imagem_url).name
+            if antigo.exists():
+                antigo.unlink()
+        caminho.write_bytes(conteudo)
+        evento.imagem_url = f"/uploads/{nome_arquivo}"
     session.add(evento)
     session.commit()
     session.refresh(evento)
