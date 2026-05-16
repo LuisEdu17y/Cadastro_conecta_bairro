@@ -598,7 +598,10 @@
                         <h3>${escapeHTML(titulo)}</h3>
                         <p class="text-muted-soft" style="margin-top: -0.3rem;">${lista.length} ${lista.length === 1 ? 'inscrito' : 'inscritos'}</p>
                         <div style="margin-top: 1rem;">${corpo}</div>
-                        <button class="btn-cb btn-cb--soft btn-cb--block mt-2" data-close>Fechar</button>
+                        <div class="flex gap-2 mt-2">
+                            ${lista.length > 0 ? `<a href="/admin/eventos/${id}/inscritos/csv" download class="btn-cb btn-cb--soft btn-cb--block"><i class="bi bi-download"></i> Exportar CSV</a>` : ''}
+                            <button class="btn-cb btn-cb--ghost btn-cb--block" data-close>Fechar</button>
+                        </div>
                     </div>
                 `;
                 document.body.appendChild(bd);

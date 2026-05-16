@@ -23,18 +23,15 @@ from email.mime.text import MIMEText
 
 logger = logging.getLogger(__name__)
 
-SMTP_HOST = os.getenv("SMTP_HOST", "")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
-EMAIL_FROM = os.getenv("EMAIL_FROM", SMTP_USER)
-
-_smtp_configurado = bool(SMTP_HOST and SMTP_USER and SMTP_PASS)
-
-
 def _enviar_sync(para: str, assunto: str, html: str) -> None:
     """Envia e-mail de forma síncrona (chamado em thread separada)."""
-    if not _smtp_configurado:
+    host = os.getenv("SMTP_HOST", "")
+    port = int(os.getenv("SMTP_PORT", "587"))
+    user = os.getenv("SMTP_USER", "")
+    senha = os.getenv("SMTP_PASS", "")
+    remetente = os.getenv("EMAIL_FROM", user)
+
+    if not (host and user and senha):
         logger.info(
             "[EMAIL - sem SMTP configurado]\n"
             f"  Para:    {para}\n"
@@ -45,15 +42,15 @@ def _enviar_sync(para: str, assunto: str, html: str) -> None:
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = assunto
-    msg["From"] = EMAIL_FROM
+    msg["From"] = remetente
     msg["To"] = para
     msg.attach(MIMEText(html, "html", "utf-8"))
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as smtp:
+    with smtplib.SMTP(host, port) as smtp:
         smtp.ehlo()
         smtp.starttls()
-        smtp.login(SMTP_USER, SMTP_PASS)
-        smtp.sendmail(EMAIL_FROM, [para], msg.as_string())
+        smtp.login(user, senha)
+        smtp.sendmail(remetente, [para], msg.as_string())
 
 
 async def enviar_email(para: str, assunto: str, html: str) -> None:

@@ -4,14 +4,19 @@ routers/admin_router.py
 Rotas exclusivas do painel administrativo.
 
 Todas exigem role='admin'.
-- GET    /admin/estatisticas       → KPIs do dashboard
-- GET    /admin/usuarios           → lista todos
-- PUT    /admin/usuarios/{id}      → ativa/desativa, muda role
-- DELETE /admin/usuarios/{id}      → remove (não permite remover a si mesmo)
-- GET    /admin/eventos/{id}/inscritos → lista inscritos num evento
+- GET    /admin/estatisticas              → KPIs do dashboard
+- GET    /admin/usuarios                  → lista todos
+- PUT    /admin/usuarios/{id}             → ativa/desativa, muda role
+- DELETE /admin/usuarios/{id}             → remove (não permite remover a si mesmo)
+- GET    /admin/eventos/{id}/inscritos    → lista inscritos num evento
+- GET    /admin/eventos/{id}/inscritos/csv → exporta inscritos em CSV
 """
 
+import csv
+import io
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
 from database import get_session
@@ -164,3 +169,41 @@ def listar_inscritos(
         .order_by(Inscricao.criado_em.desc())
     )
     return session.exec(query).all()
+
+
+@router.get("/eventos/{evento_id}/inscritos/csv")
+def exportar_inscritos_csv(
+    evento_id: int,
+    session: Session = Depends(get_session),
+    _: Usuario = Depends(apenas_admin),
+):
+    evento = session.get(Evento, evento_id)
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+
+    inscritos = session.exec(
+        select(Usuario, Inscricao.criado_em)
+        .join(Inscricao, Inscricao.usuario_id == Usuario.id)
+        .where(Inscricao.evento_id == evento_id)
+        .order_by(Inscricao.criado_em.asc())
+    ).all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Nome", "E-mail", "Bairro", "Telefone", "Inscrito em"])
+    for usuario, inscrito_em in inscritos:
+        writer.writerow([
+            usuario.nome,
+            usuario.email,
+            usuario.bairro or "",
+            usuario.telefone or "",
+            inscrito_em.strftime("%d/%m/%Y %H:%M"),
+        ])
+
+    nome_arquivo = evento.titulo.replace(" ", "_").lower()[:40]
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="inscritos_{nome_arquivo}.csv"'},
+    )

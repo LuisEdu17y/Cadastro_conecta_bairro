@@ -405,8 +405,11 @@
                             <i class="bi bi-people"></i> ${vagasTxt}
                         </span>
                         <div style="display:flex;gap:0.4rem;align-items:center;">
-                            <button class="btn-cb btn-cb--sm btn-cb--ghost" onclick="abrirComentarios(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}')">
+                            <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Comentários" onclick="abrirComentarios(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}')">
                                 <i class="bi bi-chat"></i>
+                            </button>
+                            <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Compartilhar" onclick="compartilharEvento(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}', '${escapeHTML(ev.local).replace(/'/g,"\\'")}', '${escapeHTML(ev.data).replace(/'/g,"\\'")}')">
+                                <i class="bi bi-share"></i>
                             </button>
                             ${acaoBtn}
                         </div>
@@ -694,6 +697,21 @@
                 btn.closest('div[style]').remove();
             } catch (err) {
                 toast(err.message || 'Erro ao remover', 'error');
+            }
+        };
+
+        // ------------------------------------------------------------
+        // Compartilhar evento
+        // ------------------------------------------------------------
+        window.compartilharEvento = function(id, titulo, local, data) {
+            const texto = `${titulo}\n📍 ${local}\n📅 ${data}`;
+            const url = window.location.origin + '/app';
+            if (navigator.share) {
+                navigator.share({ title: titulo, text: texto, url });
+            } else {
+                navigator.clipboard.writeText(`${texto}\n${url}`)
+                    .then(() => toast('Link copiado!', 'success'))
+                    .catch(() => toast('Não foi possível copiar', 'error'));
             }
         };
 
