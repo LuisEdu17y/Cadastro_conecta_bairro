@@ -46,12 +46,13 @@ def _enviar_sync(para: str, assunto: str, html: str) -> None:
     msg["To"] = para
     msg.attach(MIMEText(html, "html", "utf-8"))
 
+    TIMEOUT = 15
     if port == 465:
-        with smtplib.SMTP_SSL(host, port) as smtp:
+        with smtplib.SMTP_SSL(host, port, timeout=TIMEOUT) as smtp:
             smtp.login(user, senha)
             smtp.sendmail(remetente, [para], msg.as_string())
     else:
-        with smtplib.SMTP(host, port) as smtp:
+        with smtplib.SMTP(host, port, timeout=TIMEOUT) as smtp:
             smtp.ehlo()
             smtp.starttls()
             smtp.login(user, senha)
@@ -59,9 +60,15 @@ def _enviar_sync(para: str, assunto: str, html: str) -> None:
 
 
 async def enviar_email(para: str, assunto: str, html: str) -> None:
-    """Envia e-mail de forma assíncrona (não bloqueia o event loop)."""
+    """Dispara o envio em background — não bloqueia a resposta HTTP."""
+    asyncio.create_task(
+        asyncio.to_thread(_enviar_sync_seguro, para, assunto, html)
+    )
+
+
+def _enviar_sync_seguro(para: str, assunto: str, html: str) -> None:
     try:
-        await asyncio.to_thread(_enviar_sync, para, assunto, html)
+        _enviar_sync(para, assunto, html)
     except Exception as exc:
         logger.error(f"Falha ao enviar e-mail para {para}: {exc}")
 
