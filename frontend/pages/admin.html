@@ -356,7 +356,8 @@
             const cont = document.getElementById('lista-eventos-admin');
             cont.innerHTML = '<div class="cb-spinner"></div>';
             try {
-                const { eventos } = await API.get('/eventos?limite=100');
+                const resposta = await API.get('/eventos?limite=100');
+                const eventos = Array.isArray(resposta) ? resposta : (resposta.eventos ?? []);
                 if (eventos.length === 0) {
                     cont.innerHTML = `
                         <div class="empty-state cb-card">
@@ -409,6 +410,7 @@
                 `;
             } catch (err) {
                 if (err.status === 401) { sair(true); return; }
+                console.error('[admin] carregarEventosAdmin:', err);
                 toast('Erro ao carregar eventos', 'error');
             }
         }
