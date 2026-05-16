@@ -46,11 +46,16 @@ def _enviar_sync(para: str, assunto: str, html: str) -> None:
     msg["To"] = para
     msg.attach(MIMEText(html, "html", "utf-8"))
 
-    with smtplib.SMTP(host, port) as smtp:
-        smtp.ehlo()
-        smtp.starttls()
-        smtp.login(user, senha)
-        smtp.sendmail(remetente, [para], msg.as_string())
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port) as smtp:
+            smtp.login(user, senha)
+            smtp.sendmail(remetente, [para], msg.as_string())
+    else:
+        with smtplib.SMTP(host, port) as smtp:
+            smtp.ehlo()
+            smtp.starttls()
+            smtp.login(user, senha)
+            smtp.sendmail(remetente, [para], msg.as_string())
 
 
 async def enviar_email(para: str, assunto: str, html: str) -> None:
