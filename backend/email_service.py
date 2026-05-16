@@ -207,44 +207,44 @@ def _html_redefinir_senha(nome: str, link: str) -> str:
 
 async def email_inscricao_confirmada(para, nome, titulo, local, data):
     import asyncio
-    asyncio.create_task(asyncio.to_thread(
+    await asyncio.to_thread(
         _enviar_sync_seguro, para,
         f"Inscrição confirmada: {titulo}",
-        _html_inscricao_confirmada(nome, titulo, local, data)
-    ))
+        _html_inscricao_confirmada(nome, titulo, local, data),
+    )
 
 
 async def email_inscricao_cancelada(para, nome, titulo):
     import asyncio
-    asyncio.create_task(asyncio.to_thread(
+    await asyncio.to_thread(
         _enviar_sync_seguro, para,
         f"Inscrição cancelada: {titulo}",
-        _html_inscricao_cancelada(nome, titulo)
-    ))
+        _html_inscricao_cancelada(nome, titulo),
+    )
 
 
 async def email_evento_atualizado(para, nome, titulo, local, data):
     import asyncio
-    asyncio.create_task(asyncio.to_thread(
+    await asyncio.to_thread(
         _enviar_sync_seguro, para,
         f"Evento atualizado: {titulo}",
-        _html_evento_atualizado(nome, titulo, local, data)
-    ))
+        _html_evento_atualizado(nome, titulo, local, data),
+    )
 
 
 async def email_evento_cancelado(para, nome, titulo):
     import asyncio
-    asyncio.create_task(asyncio.to_thread(
+    await asyncio.to_thread(
         _enviar_sync_seguro, para,
         f"Evento cancelado: {titulo}",
-        _html_evento_cancelado(nome, titulo)
-    ))
+        _html_evento_cancelado(nome, titulo),
+    )
 
 
 async def email_redefinir_senha(para, nome, link):
     import asyncio
-    asyncio.create_task(asyncio.to_thread(
+    await asyncio.to_thread(
         _enviar_sync_seguro, para,
         "Redefinição de senha — Conecta Bairro",
-        _html_redefinir_senha(nome, link)
-    ))
+        _html_redefinir_senha(nome, link),
+    )
