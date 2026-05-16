@@ -100,11 +100,16 @@ LIMITE_PADRAO = 12
 LIMITE_MAXIMO = 100
 
 
+ORDENS_VALIDAS = {"recentes", "antigos", "inscritos", "vagas"}
+
+
 @router.get("", response_model=EventosPaginados)
 def listar_eventos(
     modalidade: Optional[str] = None,
     bairro: Optional[str] = None,
     local: Optional[str] = None,
+    q: Optional[str] = Query(default=None, description="Busca por título, descrição ou local"),
+    ordem: Optional[str] = Query(default="recentes", description="recentes | antigos | inscritos | vagas"),
     data_inicio: Optional[datetime] = Query(default=None, description="Filtrar a partir desta data (ISO 8601)"),
     data_fim: Optional[datetime] = Query(default=None, description="Filtrar até esta data (ISO 8601)"),
     limite: int = Query(default=LIMITE_PADRAO, ge=1, le=LIMITE_MAXIMO, description="Eventos por página"),
@@ -112,8 +117,7 @@ def listar_eventos(
     session: Session = Depends(get_session),
     usuario: Optional[Usuario] = Depends(usuario_atual_opcional),
 ):
-    """Lista eventos paginados com filtros opcionais."""
-    # Query base com filtros
+    """Lista eventos paginados com filtros, busca e ordenação."""
     query_base = select(Evento)
 
     if modalidade and modalidade.lower() != "todos":
@@ -122,19 +126,43 @@ def listar_eventos(
         query_base = query_base.where(Evento.bairro == bairro)
     if local:
         query_base = query_base.where(Evento.local.ilike(f"%{local}%"))
+    if q:
+        termo = f"%{q.strip()}%"
+        query_base = query_base.where(
+            Evento.titulo.ilike(termo)
+            | Evento.descricao.ilike(termo)
+            | Evento.local.ilike(termo)
+        )
     if data_inicio:
         query_base = query_base.where(Evento.data_inicio >= data_inicio)
     if data_fim:
         query_base = query_base.where(Evento.data_inicio <= data_fim)
 
-    # Total para indicar se há mais páginas
+    # Total para paginação
     total = session.exec(
         select(func.count()).select_from(query_base.subquery())
     ).one()
 
-    # Página atual
+    # Ordenação
+    if ordem == "antigos":
+        query_base = query_base.order_by(Evento.criado_em.asc())
+    elif ordem == "inscritos":
+        sub = (
+            select(Inscricao.evento_id, func.count(Inscricao.id).label("cnt"))
+            .group_by(Inscricao.evento_id)
+            .subquery()
+        )
+        query_base = (
+            query_base.outerjoin(sub, Evento.id == sub.c.evento_id)
+            .order_by(func.coalesce(sub.c.cnt, 0).desc(), Evento.criado_em.desc())
+        )
+    elif ordem == "vagas":
+        query_base = query_base.order_by(Evento.vagas.desc(), Evento.criado_em.desc())
+    else:  # recentes (padrão)
+        query_base = query_base.order_by(Evento.criado_em.desc())
+
     eventos = session.exec(
-        query_base.order_by(Evento.criado_em.desc()).offset(offset).limit(limite)
+        query_base.offset(offset).limit(limite)
     ).all()
 
     return EventosPaginados(

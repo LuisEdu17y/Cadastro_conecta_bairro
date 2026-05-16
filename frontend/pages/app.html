@@ -60,6 +60,22 @@
             <button class="chip" data-filtro="Outros"><i class="bi bi-stars"></i> Outros</button>
         </div>
 
+        <!-- Busca + ordenação -->
+        <div style="padding: 0 1rem; display:flex; gap:0.5rem; align-items:center;">
+            <div style="flex:1;position:relative;">
+                <i class="bi bi-search" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--ink-400);pointer-events:none;"></i>
+                <input id="campo-busca" type="search" placeholder="Buscar eventos..."
+                    style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1.5px solid var(--ink-200);border-radius:99px;font-size:0.9rem;background:#fff;box-sizing:border-box;">
+            </div>
+            <select id="select-ordem"
+                style="padding:0.55rem 0.7rem;border:1.5px solid var(--ink-200);border-radius:99px;font-size:0.85rem;background:#fff;cursor:pointer;">
+                <option value="recentes">Mais recentes</option>
+                <option value="antigos">Mais antigos</option>
+                <option value="inscritos">Mais inscritos</option>
+                <option value="vagas">Mais vagas</option>
+            </select>
+        </div>
+
         <!-- Filtros avançados (expansível) -->
         <div style="padding: 0 1rem;">
             <button id="btn-filtros-avancados" class="btn-cb btn-cb--soft btn-cb--sm" style="width:100%;justify-content:space-between;display:flex;align-items:center;">
@@ -141,6 +157,8 @@
         // ------------------------------------------------------------
         let aba = 'todos';              // 'todos' ou 'meus'
         let filtro = 'Todos';           // modalidade
+        let ordem = 'recentes';         // recentes | antigos | inscritos | vagas
+        let buscaTexto = '';            // campo de busca livre
         let cacheTodos = { total: 0, tem_mais: false, eventos: [] };
         let cacheMeus  = [];            // GET /eventos/meus (sem paginação)
         let filtrosAvancados = {};      // { data_inicio, data_fim, bairro, local }
@@ -180,12 +198,30 @@
             carregarFeed();
         });
 
+        // Busca por texto (debounce de 400ms)
+        let _buscaTimer = null;
+        document.getElementById('campo-busca').addEventListener('input', (e) => {
+            clearTimeout(_buscaTimer);
+            _buscaTimer = setTimeout(() => {
+                buscaTexto = e.target.value.trim();
+                carregarFeed();
+            }, 400);
+        });
+
+        // Ordenação
+        document.getElementById('select-ordem').addEventListener('change', (e) => {
+            ordem = e.target.value;
+            carregarFeed();
+        });
+
         // ------------------------------------------------------------
         // Helpers de query string
         // ------------------------------------------------------------
         function buildParams(offset = 0) {
             const params = new URLSearchParams();
             if (filtro !== 'Todos') params.set('modalidade', filtro);
+            if (buscaTexto) params.set('q', buscaTexto);
+            if (ordem !== 'recentes') params.set('ordem', ordem);
             Object.entries(filtrosAvancados).forEach(([k, v]) => params.set(k, v));
             params.set('limite', LIMITE);
             params.set('offset', offset);
