@@ -229,12 +229,32 @@
         }
 
         // ------------------------------------------------------------
+        // Skeleton loading
+        // ------------------------------------------------------------
+        function renderSkeleton(n = 4) {
+            return Array.from({ length: n }, () => `
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-img" style="display:none;" data-skel-img></div>
+                    <div class="skeleton skeleton-line skeleton-line--sm" style="margin-bottom:10px;"></div>
+                    <div class="skeleton skeleton-line skeleton-line--title"></div>
+                    <div class="skeleton skeleton-line skeleton-line--lg"></div>
+                    <div class="skeleton skeleton-line skeleton-line--md" style="margin-bottom:12px;"></div>
+                    <div class="skeleton skeleton-line skeleton-line--md"></div>
+                    <div class="skeleton-footer">
+                        <div class="skeleton skeleton-line" style="width:90px;height:10px;"></div>
+                        <div class="skeleton skeleton-btn"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ------------------------------------------------------------
         // Carregar dados (primeira página — reseta o feed)
         // ------------------------------------------------------------
         async function carregarFeed() {
             offsetAtual = 0;
             const feed = document.getElementById('feed');
-            feed.innerHTML = '<div class="cb-spinner"></div>';
+            feed.innerHTML = renderSkeleton(4);
 
             try {
                 if (aba === 'todos') {
@@ -620,7 +640,15 @@
                         <button data-close style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--ink-500);">×</button>
                     </div>
                     <div id="lista-comentarios" style="flex:1;overflow-y:auto;margin-bottom:1rem;">
-                        <div class="cb-spinner"></div>
+                        ${Array.from({length:3}, () => `
+                            <div style="padding:0.7rem 0;border-bottom:1px solid var(--ink-100);display:flex;gap:0.6rem;align-items:flex-start;">
+                                <div class="skeleton" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;"></div>
+                                <div style="flex:1;">
+                                    <div class="skeleton skeleton-line" style="width:40%;height:10px;margin-bottom:6px;"></div>
+                                    <div class="skeleton skeleton-line skeleton-line--full" style="height:10px;"></div>
+                                </div>
+                            </div>
+                        `).join('')}
                     </div>
                     ${API.isAuthenticated() ? `
                     <form id="form-comentario" style="display:flex;gap:0.5rem;">
