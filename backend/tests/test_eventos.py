@@ -156,7 +156,7 @@ class TestInscricoes:
         r = client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token_user}"})
         assert r.status_code == 409
 
-    def test_vagas_esgotadas(self, client):
+    def test_vagas_esgotadas_entra_na_espera(self, client):
         registrar_usuario(client, email="user1@test.com")
         registrar_usuario(client, nome="User2", email="user2@test.com")
         token1 = login_usuario(client, email="user1@test.com")
@@ -166,9 +166,15 @@ class TestInscricoes:
         evento = criar_evento(client, token_admin, vagas=1)
 
         client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token1}"})
+        # Vagas esgotadas: user2 entra na lista de espera (201)
         r = client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token2}"})
-        assert r.status_code == 409
-        assert "esgotadas" in r.json()["detail"].lower()
+        assert r.status_code == 201
+        assert r.json()["lista_espera"] is True
+        assert r.json()["posicao"] == 1
+
+        # Tentar entrar na espera de novo retorna 409
+        r2 = client.post(f"/eventos/{evento['id']}/inscrever", headers={"Authorization": f"Bearer {token2}"})
+        assert r2.status_code == 409
 
     def test_meus_eventos(self, client):
         registrar_usuario(client)
