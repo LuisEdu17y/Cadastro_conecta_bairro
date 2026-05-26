@@ -55,6 +55,15 @@
                     <input id="senha" type="password" placeholder="Mínimo 6 caracteres" required minlength="6">
                 </div>
 
+                <label class="cesta-label">
+                    <input id="cesta" type="checkbox">
+                    <span>
+                        <i class="bi bi-box-seam"></i>
+                        Preciso de cesta básica
+                        <span class="cesta-hint">Opcional — a administração entrará em contato</span>
+                    </span>
+                </label>
+
                 <button type="submit" class="btn-cb btn-cb--primary btn-cb--lg btn-cb--block" id="btn-criar">
                     <span class="label">Criar minha conta</span>
                 </button>
@@ -79,16 +88,17 @@
 
         form.addEventListener('submit', async e => {
             e.preventDefault();
-            const nome     = document.getElementById('nome').value.trim();
-            const email    = document.getElementById('email').value.trim();
-            const bairro   = document.getElementById('bairro').value.trim() || null;
-            const telefone = document.getElementById('telefone').value.trim() || null;
-            const senha    = document.getElementById('senha').value;
+            const nome                = document.getElementById('nome').value.trim();
+            const email               = document.getElementById('email').value.trim();
+            const bairro              = document.getElementById('bairro').value.trim() || null;
+            const telefone            = document.getElementById('telefone').value.trim() || null;
+            const senha               = document.getElementById('senha').value;
+            const precisa_cesta_basica = document.getElementById('cesta').checked;
 
             btn.disabled = true;
             btn.querySelector('.label').textContent = 'Criando...';
             try {
-                await API.post('/auth/registro', { nome, email, bairro, telefone, senha });
+                await API.post('/auth/registro', { nome, email, bairro, telefone, senha, precisa_cesta_basica });
                 const login = await API.post('/auth/login', { email, senha });
                 API.setToken(login.access_token);
                 API.setUser(login.usuario);

@@ -103,11 +103,12 @@ const API = (() => {
 
     return {
         baseURL,
-        get:    (path)        => request('GET', path),
-        post:   (path, body)  => request('POST', path, body),
-        put:    (path, body)  => request('PUT', path, body),
-        delete: (path)        => request('DELETE', path),
+        get:      (path)           => request('GET', path),
+        post:     (path, body)     => request('POST', path, body),
+        put:      (path, body)     => request('PUT', path, body),
+        delete:   (path)           => request('DELETE', path),
         upload,
+        postForm: (path, formData) => upload(path, formData),
         setToken, getToken, clearToken,
         setUser,  getUser,
         isAuthenticated: () => !!getToken(),

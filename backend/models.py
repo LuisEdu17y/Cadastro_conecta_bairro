@@ -40,6 +40,8 @@ class Usuario(UsuarioBase, table=True):
     role: str = Field(default="morador")  # 'morador' ou 'admin'
     criado_em: datetime = Field(default_factory=datetime.utcnow)
     ativo: bool = Field(default=True)
+    foto_url: Optional[str] = Field(default=None)
+    precisa_cesta_basica: bool = Field(default=False)
 
     inscricoes: list["Inscricao"] = Relationship(back_populates="usuario")
     tokens_reset: list["PasswordResetToken"] = Relationship(back_populates="usuario")
@@ -48,6 +50,7 @@ class Usuario(UsuarioBase, table=True):
 class UsuarioCreate(UsuarioBase):
     """Payload de cadastro público (POST /auth/registro)."""
     senha: str
+    precisa_cesta_basica: Optional[bool] = False
 
 
 class UsuarioPublic(UsuarioBase):
@@ -56,6 +59,8 @@ class UsuarioPublic(UsuarioBase):
     role: str
     criado_em: datetime
     ativo: bool
+    foto_url: Optional[str] = None
+    precisa_cesta_basica: bool = False
 
 
 class UsuarioUpdate(SQLModel):
@@ -63,6 +68,7 @@ class UsuarioUpdate(SQLModel):
     bairro: Optional[str] = None
     telefone: Optional[str] = None
     senha: Optional[str] = None
+    precisa_cesta_basica: Optional[bool] = None
 
 
 # ============================================================

@@ -536,6 +536,7 @@
                                 <tr>
                                     <td data-label="Nome" class="text-bold">
                                         ${escapeHTML(u.nome)}${ehVoce ? ' <span class="text-muted-soft text-normal">(você)</span>' : ''}
+                                        ${u.precisa_cesta_basica ? ' <span class="badge-cesta" title="Solicitou cesta básica"><i class="bi bi-box-seam"></i></span>' : ''}
                                     </td>
                                     <td data-label="E-mail" class="text-muted-soft">${escapeHTML(u.email)}</td>
                                     <td data-label="Bairro" class="text-muted-soft">${escapeHTML(u.bairro || '—')}</td>

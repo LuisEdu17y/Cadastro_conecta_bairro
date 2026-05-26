@@ -10,9 +10,11 @@ Rotas de autenticação:
 """
 
 import secrets
+import uuid
 from datetime import datetime, timedelta
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
 from sqlmodel import Session, select
 
 from database import get_session
@@ -65,6 +67,7 @@ def registrar(dados: UsuarioCreate, session: Session = Depends(get_session)):
         telefone=dados.telefone,
         senha_hash=hash_senha(dados.senha),
         role="morador",
+        precisa_cesta_basica=dados.precisa_cesta_basica or False,
     )
     session.add(novo)
     session.commit()
@@ -125,6 +128,53 @@ def atualizar_perfil(
         if len(dados.senha) < 6:
             raise HTTPException(status_code=400, detail="A senha precisa ter no mínimo 6 caracteres")
         usuario.senha_hash = hash_senha(dados.senha)
+
+    if dados.precisa_cesta_basica is not None:
+        usuario.precisa_cesta_basica = dados.precisa_cesta_basica
+
+    session.add(usuario)
+    session.commit()
+    session.refresh(usuario)
+    return usuario
+
+
+UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads" / "perfil"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+EXTENSOES_FOTO = {".jpg", ".jpeg", ".png", ".webp"}
+TAMANHO_MAX_MB = 3
+
+
+@router.post("/me/foto", response_model=UsuarioPublic)
+async def upload_foto_perfil(
+    arquivo: UploadFile = File(...),
+    session: Session = Depends(get_session),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Faz upload da foto de perfil do usuário autenticado."""
+    sufixo = Path(arquivo.filename or "").suffix.lower()
+    if sufixo not in EXTENSOES_FOTO:
+        raise HTTPException(status_code=400, detail=f"Formato não permitido. Use: {', '.join(EXTENSOES_FOTO)}")
+
+    conteudo = await arquivo.read()
+    if len(conteudo) > TAMANHO_MAX_MB * 1024 * 1024:
+        raise HTTPException(status_code=400, detail=f"Arquivo muito grande. Máximo: {TAMANHO_MAX_MB} MB")
+
+    import cloudinary_service as cdn
+    if cdn.disponivel():
+        public_id = f"perfil/usuario_{usuario.id}"
+        try:
+            usuario.foto_url = cdn.fazer_upload(conteudo, public_id)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Erro ao enviar foto: {exc}")
+    else:
+        nome_arquivo = f"perfil_{usuario.id}_{uuid.uuid4().hex}{sufixo}"
+        caminho = UPLOADS_DIR / nome_arquivo
+        if usuario.foto_url and usuario.foto_url.startswith("/uploads/perfil/"):
+            antigo = UPLOADS_DIR / Path(usuario.foto_url).name
+            if antigo.exists():
+                antigo.unlink()
+        caminho.write_bytes(conteudo)
+        usuario.foto_url = f"/uploads/perfil/{nome_arquivo}"
 
     session.add(usuario)
     session.commit()

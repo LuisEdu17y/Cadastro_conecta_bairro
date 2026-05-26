@@ -75,6 +75,10 @@ def _migrar_colunas() -> None:
             ("data_inicio", "DATETIME"),
             ("imagem_url", "TEXT"),
         ],
+        "usuario": [
+            ("foto_url", "TEXT"),
+            ("precisa_cesta_basica", "INTEGER NOT NULL DEFAULT 0"),
+        ],
         "passwordresettoken": [],  # tabela nova, create_all cuida disso
     }
 

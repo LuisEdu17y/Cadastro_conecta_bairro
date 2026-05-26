@@ -145,7 +145,16 @@
         // ------------------------------------------------------------
         // Configuração inicial do header
         // ------------------------------------------------------------
-        document.getElementById('user-avatar').textContent = iniciais(usuario.nome);
+        function atualizarAvatar(el, u) {
+            if (u.foto_url) {
+                el.innerHTML = `<img src="${u.foto_url}" alt="${u.nome}" class="avatar-img">`;
+                el.classList.add('has-foto');
+            } else {
+                el.textContent = iniciais(u.nome);
+                el.classList.remove('has-foto');
+            }
+        }
+        atualizarAvatar(document.getElementById('user-avatar'), usuario);
         document.getElementById('user-name').textContent = usuario.nome.split(' ')[0];
         const hora = new Date().getHours();
         document.getElementById('hello-text').textContent =
@@ -558,13 +567,18 @@
             bd.className = 'cb-modal-backdrop';
 
             if (!editando) {
+                const avatarHtml = usuario.foto_url
+                    ? `<div class="avatar perfil-avatar-lg has-foto"><img src="${usuario.foto_url}" alt="${escapeHTML(usuario.nome)}" class="avatar-img"></div>`
+                    : `<div class="avatar perfil-avatar-lg">${iniciais(usuario.nome)}</div>`;
+
                 bd.innerHTML = `
                     <div class="cb-modal">
                         <div class="text-center mb-2">
-                            <div class="avatar perfil-avatar-lg">${iniciais(usuario.nome)}</div>
+                            ${avatarHtml}
                             <h3>${escapeHTML(usuario.nome)}</h3>
                             <p class="text-muted-soft">${escapeHTML(usuario.email)}</p>
                             ${usuario.role === 'admin' ? '<span class="status-pill status-pill--admin mt-1">Administrador</span>' : ''}
+                            ${usuario.precisa_cesta_basica ? '<span class="status-pill status-pill--cesta mt-1"><i class="bi bi-box-seam"></i> Cesta básica solicitada</span>' : ''}
                         </div>
                         <div class="perfil-dados">
                             <p><strong>Bairro:</strong> ${escapeHTML(usuario.bairro || '—')}</p>
@@ -583,10 +597,21 @@
                     bd.remove(); abrirPerfil(true);
                 });
             } else {
+                const fotoAtual = usuario.foto_url
+                    ? `<div class="avatar perfil-avatar-lg has-foto"><img src="${usuario.foto_url}" alt="" class="avatar-img" id="preview-foto"></div>`
+                    : `<div class="avatar perfil-avatar-lg" id="preview-foto-wrap">${iniciais(usuario.nome)}</div>`;
+
                 bd.innerHTML = `
                     <div class="cb-modal">
                         <h3>Editar perfil</h3>
                         <form id="form-perfil">
+                            <div class="foto-upload-wrap text-center mb-2">
+                                ${fotoAtual}
+                                <label class="btn-cb btn-cb--soft btn-cb--sm mt-1" style="cursor:pointer;display:inline-flex;">
+                                    <i class="bi bi-camera"></i> Alterar foto
+                                    <input id="p-foto" type="file" accept=".jpg,.jpeg,.png,.webp" style="display:none">
+                                </label>
+                            </div>
                             <div class="field">
                                 <label>Nome</label>
                                 <input id="p-nome" value="${escapeHTML(usuario.nome)}" required>
@@ -603,6 +628,10 @@
                                 <label>Nova senha <span class="senha-hint">(deixe em branco para manter)</span></label>
                                 <input id="p-senha" type="password" placeholder="Mínimo 6 caracteres" minlength="6">
                             </div>
+                            <label class="cesta-label mt-1">
+                                <input id="p-cesta" type="checkbox" ${usuario.precisa_cesta_basica ? 'checked' : ''}>
+                                <span><i class="bi bi-box-seam"></i> Preciso de cesta básica</span>
+                            </label>
                             <div class="flex gap-2 mt-2">
                                 <button type="button" class="btn-cb btn-cb--soft btn-cb--block" data-close>Cancelar</button>
                                 <button type="submit" class="btn-cb btn-cb--primary btn-cb--block" id="btn-salvar-perfil">Salvar</button>
@@ -610,34 +639,69 @@
                         </form>
                     </div>
                 `;
+                // Preview da foto antes de salvar
+                bd.querySelector('#p-foto').addEventListener('change', e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => {
+                        const wrap = bd.querySelector('#preview-foto-wrap') || bd.querySelector('#preview-foto')?.parentElement;
+                        const existingImg = bd.querySelector('#preview-foto');
+                        if (existingImg) {
+                            existingImg.src = ev.target.result;
+                        } else if (wrap) {
+                            wrap.innerHTML = `<img src="${ev.target.result}" alt="" class="avatar-img" id="preview-foto">`;
+                            wrap.classList.add('has-foto');
+                        }
+                    };
+                    reader.readAsDataURL(file);
+                });
+
                 bd.querySelector('#form-perfil').addEventListener('submit', async e => {
                     e.preventDefault();
-                    const payload = {};
-                    const nome     = bd.querySelector('#p-nome').value.trim();
-                    const bairro   = bd.querySelector('#p-bairro').value.trim();
-                    const telefone = bd.querySelector('#p-telefone').value.trim();
-                    const senha    = bd.querySelector('#p-senha').value;
-
-                    if (nome !== usuario.nome) payload.nome = nome;
-                    if (bairro !== (usuario.bairro || '')) payload.bairro = bairro || null;
-                    if (telefone !== (usuario.telefone || '')) payload.telefone = telefone || null;
-                    if (senha) payload.senha = senha;
-
-                    if (Object.keys(payload).length === 0) { bd.remove(); return; }
-
                     const btn = bd.querySelector('#btn-salvar-perfil');
                     btn.disabled = true;
+                    btn.textContent = 'Salvando...';
+
                     try {
-                        const atualizado = await API.put('/auth/me', payload);
-                        Object.assign(usuario, atualizado);
-                        API.setUser(atualizado);
-                        document.getElementById('user-avatar').textContent = iniciais(usuario.nome);
+                        // Upload de foto (se selecionada)
+                        const fotoInput = bd.querySelector('#p-foto');
+                        if (fotoInput.files[0]) {
+                            const fd = new FormData();
+                            fd.append('arquivo', fotoInput.files[0]);
+                            const atualizado = await API.postForm('/auth/me/foto', fd);
+                            Object.assign(usuario, atualizado);
+                            API.setUser(atualizado);
+                        }
+
+                        // Atualizar dados do perfil
+                        const payload = {};
+                        const nome     = bd.querySelector('#p-nome').value.trim();
+                        const bairro   = bd.querySelector('#p-bairro').value.trim();
+                        const telefone = bd.querySelector('#p-telefone').value.trim();
+                        const senha    = bd.querySelector('#p-senha').value;
+                        const cesta    = bd.querySelector('#p-cesta').checked;
+
+                        if (nome !== usuario.nome) payload.nome = nome;
+                        if (bairro !== (usuario.bairro || '')) payload.bairro = bairro || null;
+                        if (telefone !== (usuario.telefone || '')) payload.telefone = telefone || null;
+                        if (senha) payload.senha = senha;
+                        if (cesta !== usuario.precisa_cesta_basica) payload.precisa_cesta_basica = cesta;
+
+                        if (Object.keys(payload).length > 0) {
+                            const atualizado = await API.put('/auth/me', payload);
+                            Object.assign(usuario, atualizado);
+                            API.setUser(atualizado);
+                        }
+
+                        atualizarAvatar(document.getElementById('user-avatar'), usuario);
                         document.getElementById('user-name').textContent = usuario.nome.split(' ')[0];
                         toast('Perfil atualizado!', 'success');
                         bd.remove();
                     } catch (err) {
                         toast(err.message || 'Erro ao salvar', 'error');
                         btn.disabled = false;
+                        btn.textContent = 'Salvar';
                     }
                 });
             }
