@@ -10,88 +10,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/css/style.css">
-
-    <style>
-        .auth-shell {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 1.5rem;
-        }
-        .auth-card {
-            background: #fff;
-            border-radius: var(--radius-xl);
-            box-shadow: var(--shadow-lg);
-            padding: 2.3rem;
-            max-width: 420px;
-            width: 100%;
-            position: relative;
-            overflow: hidden;
-        }
-        .auth-card::before {
-            content: '';
-            position: absolute;
-            top: 0; right: 0;
-            width: 100%;
-            height: 5px;
-            background: linear-gradient(90deg, var(--brand-500), var(--accent-500));
-        }
-        .auth-logo {
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            justify-content: center;
-            margin-bottom: 1.7rem;
-        }
-        .auth-logo .mark {
-            width: 44px; height: 44px;
-            background: linear-gradient(135deg, var(--brand-500), var(--brand-700));
-            color: #fff;
-            display: flex; align-items: center; justify-content: center;
-            border-radius: 12px;
-            font-size: 1.35rem;
-        }
-        .auth-logo .name {
-            font-family: var(--font-display);
-            font-size: 1.35rem;
-            font-weight: 600;
-        }
-        .auth-title {
-            text-align: center;
-            margin-bottom: 1.7rem;
-        }
-        .auth-title h2 { margin-bottom: 0.3rem; }
-        .auth-title p  { color: var(--ink-500); margin: 0; font-size: 0.95rem; }
-        .auth-link {
-            text-align: center;
-            margin-top: 1.3rem;
-            font-size: 0.92rem;
-            color: var(--ink-500);
-        }
-        .auth-link a {
-            color: var(--brand-700);
-            font-weight: 600;
-            text-decoration: none;
-        }
-        .voltar-home {
-            position: absolute;
-            top: 1.2rem;
-            left: 1.2rem;
-            color: var(--ink-500);
-            text-decoration: none;
-            font-size: 0.88rem;
-            display: flex;
-            align-items: center;
-            gap: 0.3rem;
-        }
-        .voltar-home:hover { color: var(--brand-700); }
-        #painel-esqueci { display: block; }
-        #painel-redefinir { display: none; }
-        #painel-sucesso { display: none; text-align: center; }
-        #painel-erro { display: none; text-align: center; }
-        .big-icon { font-size: 3rem; margin-bottom: 0.8rem; }
-    </style>
 </head>
 <body>
     <a href="/login" class="voltar-home"><i class="bi bi-arrow-left"></i> Voltar ao login</a>
@@ -103,8 +21,8 @@
                 <div class="name">Conecta Bairro</div>
             </div>
 
-            <!-- ── Painel 1: Solicitar reset ── -->
-            <div id="painel-esqueci">
+            <!-- Painel 1: Solicitar reset -->
+            <div id="painel-esqueci" class="auth-panel is-active">
                 <div class="auth-title">
                     <h2>Esqueceu a senha?</h2>
                     <p>Informe seu e-mail e enviaremos um link para redefinir sua senha.</p>
@@ -121,8 +39,8 @@
                 <div class="auth-link">Lembrou? <a href="/login">Fazer login</a></div>
             </div>
 
-            <!-- ── Painel 2: Definir nova senha (token na URL) ── -->
-            <div id="painel-redefinir">
+            <!-- Painel 2: Definir nova senha -->
+            <div id="painel-redefinir" class="auth-panel">
                 <div class="auth-title">
                     <h2>Nova senha</h2>
                     <p>Escolha uma nova senha para sua conta.</p>
@@ -142,24 +60,24 @@
                 </form>
             </div>
 
-            <!-- ── Painel 3: Sucesso no envio do e-mail ── -->
-            <div id="painel-email-enviado" style="display:none; text-align:center;">
+            <!-- Painel 3: E-mail enviado -->
+            <div id="painel-email-enviado" class="auth-panel auth-panel--center">
                 <div class="big-icon">📬</div>
                 <h3>E-mail enviado!</h3>
                 <p class="text-muted-soft">Se esse endereço estiver cadastrado, você receberá um link em breve. Verifique também a caixa de spam.</p>
                 <a href="/login" class="btn-cb btn-cb--soft btn-cb--block mt-2">Voltar ao login</a>
             </div>
 
-            <!-- ── Painel 4: Senha redefinida com sucesso ── -->
-            <div id="painel-sucesso">
+            <!-- Painel 4: Senha redefinida -->
+            <div id="painel-sucesso" class="auth-panel auth-panel--center">
                 <div class="big-icon">✅</div>
                 <h3>Senha redefinida!</h3>
                 <p class="text-muted-soft">Sua senha foi alterada com sucesso. Faça login com a nova senha.</p>
                 <a href="/login" class="btn-cb btn-cb--primary btn-cb--block mt-2">Ir para o login</a>
             </div>
 
-            <!-- ── Painel 5: Token inválido ── -->
-            <div id="painel-erro">
+            <!-- Painel 5: Token inválido -->
+            <div id="painel-erro" class="auth-panel auth-panel--center">
                 <div class="big-icon">⚠️</div>
                 <h3>Link inválido ou expirado</h3>
                 <p class="text-muted-soft">Este link de redefinição expirou ou já foi utilizado. Solicite um novo abaixo.</p>
@@ -173,20 +91,18 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const token = params.get('token');
+        const paineis = ['painel-esqueci','painel-redefinir','painel-email-enviado','painel-sucesso','painel-erro'];
 
         function mostrar(id) {
-            ['painel-esqueci', 'painel-redefinir', 'painel-email-enviado', 'painel-sucesso', 'painel-erro']
-                .forEach(p => document.getElementById(p).style.display = 'none');
-            document.getElementById(id).style.display = 'block';
+            paineis.forEach(p => {
+                const el = document.getElementById(p);
+                el.classList.toggle('is-active', p === id);
+            });
         }
 
-        // Se há token na URL, mostra o formulário de nova senha
-        if (token) {
-            mostrar('painel-redefinir');
-        }
+        if (token) mostrar('painel-redefinir');
 
-        // Formulário: solicitar reset
-        document.getElementById('form-esqueci').addEventListener('submit', async (e) => {
+        document.getElementById('form-esqueci').addEventListener('submit', async e => {
             e.preventDefault();
             const email = document.getElementById('email-reset').value.trim();
             const btn = document.getElementById('btn-enviar');
@@ -202,25 +118,19 @@
             }
         });
 
-        // Formulário: nova senha
-        document.getElementById('form-redefinir').addEventListener('submit', async (e) => {
+        document.getElementById('form-redefinir').addEventListener('submit', async e => {
             e.preventDefault();
             const novaSenha = document.getElementById('nova-senha').value;
             const confSenha = document.getElementById('conf-senha').value;
-
-            if (novaSenha !== confSenha) {
-                toast('As senhas não coincidem', 'error');
-                return;
-            }
+            if (novaSenha !== confSenha) { toast('As senhas não coincidem', 'error'); return; }
 
             const btn = document.getElementById('btn-redefinir');
             btn.disabled = true;
             btn.querySelector('.label').textContent = 'Salvando...';
-
             try {
                 await API.post('/auth/redefinir-senha', { token, nova_senha: novaSenha });
                 mostrar('painel-sucesso');
-            } catch (err) {
+            } catch {
                 mostrar('painel-erro');
             }
         });

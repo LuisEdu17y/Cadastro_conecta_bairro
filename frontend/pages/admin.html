@@ -11,115 +11,11 @@
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/css/style.css">
-
-    <style>
-        body { background: var(--ink-50); }
-
-        /* Topbar mobile */
-        .mobile-topbar {
-            display: none;
-            background: var(--ink-900);
-            color: #fff;
-            padding: 1rem 1.2rem;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
-        @media (max-width: 900px) {
-            .mobile-topbar { display: flex; }
-            .admin-shell { display: block; }
-            .admin-main { padding: 1.2rem; }
-        }
-        .mobile-topbar h1 { color: #fff; margin: 0; font-size: 1.1rem; }
-        .mobile-topbar .menu-btn {
-            background: rgba(255,255,255,0.1);
-            border: none;
-            color: #fff;
-            width: 38px; height: 38px;
-            border-radius: 10px;
-            font-size: 1.2rem;
-            cursor: pointer;
-        }
-
-        /* Mostra/esconde seções */
-        .secao { display: none; }
-        .secao.is-active { display: block; }
-
-        /* Bar de mini-gráfico */
-        .bar-list { display: flex; flex-direction: column; gap: 0.6rem; }
-        .bar-item {
-            display: grid;
-            grid-template-columns: 110px 1fr 50px;
-            align-items: center;
-            gap: 0.7rem;
-            font-size: 0.88rem;
-        }
-        .bar-track {
-            background: var(--ink-100);
-            height: 10px;
-            border-radius: 999px;
-            overflow: hidden;
-        }
-        .bar-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--brand-500), var(--brand-700));
-            border-radius: 999px;
-            transition: width 0.6s ease;
-        }
-        .bar-item .num {
-            font-weight: 700;
-            color: var(--brand-700);
-            text-align: right;
-        }
-
-        /* Form de evento dentro do modal */
-        .field-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.7rem;
-        }
-        @media (max-width: 480px) {
-            .field-grid { grid-template-columns: 1fr; }
-        }
-
-        /* Tabela responsiva: cards no mobile */
-        @media (max-width: 700px) {
-            .cb-table thead { display: none; }
-            .cb-table, .cb-table tbody, .cb-table tr, .cb-table td {
-                display: block;
-                width: 100%;
-            }
-            .cb-table tr {
-                padding: 0.8rem;
-                margin-bottom: 0.5rem;
-                background: #fff;
-                border-radius: var(--radius-md);
-                box-shadow: var(--shadow-sm);
-            }
-            .cb-table td {
-                border: none;
-                padding: 0.3rem 0;
-                display: flex;
-                justify-content: space-between;
-                gap: 1rem;
-            }
-            .cb-table td::before {
-                content: attr(data-label);
-                font-weight: 700;
-                color: var(--ink-500);
-                font-size: 0.75rem;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
-        }
-    </style>
 </head>
-<body>
+<body class="admin-body">
     <!-- Topbar mobile (visível só em telas pequenas) -->
     <header class="mobile-topbar">
-        <h1><span style="color: var(--accent-500);">●</span> Admin</h1>
+        <h1><span class="topbar-dot">●</span> Admin</h1>
         <button class="menu-btn" id="btn-menu-mobile"><i class="bi bi-list"></i></button>
     </header>
 
@@ -153,7 +49,7 @@
                     <h2 id="secao-titulo">Dashboard</h2>
                 </div>
                 <span class="user-tag">
-                    <span class="avatar" id="admin-avatar" style="width: 26px; height: 26px; font-size: 0.75rem;">A</span>
+                    <span class="avatar kpi-avatar-sm" id="admin-avatar">A</span>
                     <span id="admin-nome">Admin</span>
                 </span>
             </header>
@@ -162,22 +58,22 @@
             <section id="sec-dashboard" class="secao is-active">
                 <div class="kpi-grid">
                     <div class="kpi-card" style="--accent-color: var(--brand-200);">
-                        <div class="ic" style="background: var(--brand-100); color: var(--brand-700);"><i class="bi bi-people-fill"></i></div>
+                        <div class="ic" style="background:var(--brand-100);color:var(--brand-700);"><i class="bi bi-people-fill"></i></div>
                         <div class="lbl">Usuários cadastrados</div>
                         <div class="val" id="kpi-usuarios">—</div>
                     </div>
                     <div class="kpi-card" style="--accent-color: #ffedd5;">
-                        <div class="ic" style="background: #ffedd5; color: var(--accent-600);"><i class="bi bi-calendar-check-fill"></i></div>
+                        <div class="ic" style="background:#ffedd5;color:var(--accent-600);"><i class="bi bi-calendar-check-fill"></i></div>
                         <div class="lbl">Eventos ativos</div>
                         <div class="val" id="kpi-eventos">—</div>
                     </div>
                     <div class="kpi-card" style="--accent-color: #fee2e2;">
-                        <div class="ic" style="background: #fee2e2; color: #be123c;"><i class="bi bi-bookmark-heart-fill"></i></div>
+                        <div class="ic" style="background:#fee2e2;color:#be123c;"><i class="bi bi-bookmark-heart-fill"></i></div>
                         <div class="lbl">Inscrições totais</div>
                         <div class="val" id="kpi-inscricoes">—</div>
                     </div>
                     <div class="kpi-card" style="--accent-color: #e0e7ff;">
-                        <div class="ic" style="background: #e0e7ff; color: #4338ca;"><i class="bi bi-shield-lock-fill"></i></div>
+                        <div class="ic" style="background:#e0e7ff;color:#4338ca;"><i class="bi bi-shield-lock-fill"></i></div>
                         <div class="lbl">Administradores</div>
                         <div class="val" id="kpi-admins">—</div>
                     </div>
@@ -210,7 +106,6 @@
                         <i class="bi bi-plus-lg"></i> Novo evento
                     </button>
                 </div>
-
                 <div id="lista-eventos-admin">
                     <div class="cb-spinner"></div>
                 </div>
@@ -221,7 +116,6 @@
                 <div class="section-title">
                     <h3>Gerenciar usuários</h3>
                 </div>
-
                 <div id="lista-usuarios">
                     <div class="cb-spinner"></div>
                 </div>
@@ -232,66 +126,56 @@
     <script src="/static/js/api.js"></script>
     <script src="/static/js/ui.js"></script>
     <script>
-        // ----------------------------------------------------------
-        // Guarda admin
-        // ----------------------------------------------------------
         const usuario = exigirLogin('admin');
-        if (!usuario) { throw new Error('not admin'); }
+        if (!usuario) throw new Error('not admin');
 
         document.getElementById('admin-avatar').textContent = iniciais(usuario.nome);
         document.getElementById('admin-nome').textContent = usuario.nome.split(' ')[0];
 
         // ----------------------------------------------------------
-        // Navegação entre seções
+        // Navegação
         // ----------------------------------------------------------
         const titulos = {
-            dashboard: { eyebrow: 'Visão geral', titulo: 'Dashboard' },
-            eventos:   { eyebrow: 'CRUD', titulo: 'Gerenciar Eventos' },
-            usuarios:  { eyebrow: 'Comunidade', titulo: 'Gerenciar Usuários' },
+            dashboard: { eyebrow: 'Visão geral',  titulo: 'Dashboard' },
+            eventos:   { eyebrow: 'CRUD',          titulo: 'Gerenciar Eventos' },
+            usuarios:  { eyebrow: 'Comunidade',    titulo: 'Gerenciar Usuários' },
         };
+
         function trocarSecao(nome) {
             document.querySelectorAll('.secao').forEach(s => s.classList.remove('is-active'));
             document.getElementById(`sec-${nome}`).classList.add('is-active');
-            document.querySelectorAll('.admin-sidebar .nav-link[data-secao]').forEach(n => {
-                n.classList.toggle('is-active', n.dataset.secao === nome);
-            });
+            document.querySelectorAll('.admin-sidebar .nav-link[data-secao]').forEach(n =>
+                n.classList.toggle('is-active', n.dataset.secao === nome));
             const t = titulos[nome];
             document.getElementById('secao-eyebrow').textContent = t.eyebrow;
-            document.getElementById('secao-titulo').textContent = t.titulo;
+            document.getElementById('secao-titulo').textContent  = t.titulo;
             if (nome === 'dashboard') carregarDashboard();
             if (nome === 'eventos')   carregarEventosAdmin();
             if (nome === 'usuarios')  carregarUsuarios();
         }
-        document.querySelectorAll('.admin-sidebar .nav-link[data-secao]').forEach(n => {
-            n.addEventListener('click', () => trocarSecao(n.dataset.secao));
-        });
 
-        // Botão mobile
+        document.querySelectorAll('.admin-sidebar .nav-link[data-secao]').forEach(n =>
+            n.addEventListener('click', () => trocarSecao(n.dataset.secao)));
+
         document.getElementById('btn-menu-mobile')?.addEventListener('click', () => {
             const s = document.getElementById('sidebar');
-            s.style.display = s.style.display === 'block' ? 'none' : 'block';
-            s.style.position = 'fixed';
-            s.style.top = '0';
-            s.style.left = '0';
-            s.style.zIndex = '999';
-            s.style.width = '280px';
+            const visivel = s.style.display === 'block';
+            Object.assign(s.style, visivel
+                ? { display: '' }
+                : { display: 'block', position: 'fixed', top: '0', left: '0', zIndex: '999', width: '280px' });
         });
 
-        // Sair
         document.getElementById('btn-sair').addEventListener('click', async () => {
-            const ok = await confirmar({
-                titulo: 'Sair?', mensagem: 'Você precisará entrar novamente.',
-                textoOk: 'Sair',
-            });
+            const ok = await confirmar({ titulo: 'Sair?', mensagem: 'Você precisará entrar novamente.', textoOk: 'Sair' });
             if (ok) sair();
         });
 
         function escapeHTML(s) {
             if (s == null) return '';
             return String(s)
-                .replaceAll('&', '&amp;').replaceAll('<', '&lt;')
-                .replaceAll('>', '&gt;').replaceAll('"', '&quot;')
-                .replaceAll("'", '&#39;');
+                .replaceAll('&','&amp;').replaceAll('<','&lt;')
+                .replaceAll('>','&gt;').replaceAll('"','&quot;')
+                .replaceAll("'","&#39;");
         }
 
         // ==========================================================
@@ -306,43 +190,30 @@
                 document.getElementById('kpi-inscricoes').textContent = d.total_inscricoes;
                 document.getElementById('kpi-admins').textContent     = d.total_admins;
 
-                // Gráfico de barras por modalidade
                 const max = Math.max(1, ...d.eventos_por_modalidade.map(m => m.quantidade));
-                const gm = document.getElementById('grafico-modalidades');
-                if (d.eventos_por_modalidade.length === 0) {
-                    gm.innerHTML = '<p class="text-muted-soft">Ainda não há eventos cadastrados.</p>';
-                } else {
-                    gm.innerHTML = d.eventos_por_modalidade.map(m => `
+                const gm  = document.getElementById('grafico-modalidades');
+                gm.innerHTML = d.eventos_por_modalidade.length === 0
+                    ? '<p class="text-muted-soft">Ainda não há eventos cadastrados.</p>'
+                    : d.eventos_por_modalidade.map(m => `
                         <div class="bar-item">
                             <div>${escapeHTML(m.modalidade)}</div>
-                            <div class="bar-track"><div class="bar-fill" style="width: ${(m.quantidade/max)*100}%"></div></div>
+                            <div class="bar-track"><div class="bar-fill" style="width:${(m.quantidade/max)*100}%"></div></div>
                             <div class="num">${m.quantidade}</div>
-                        </div>
-                    `).join('');
-                }
+                        </div>`).join('');
 
-                // Top eventos
                 const te = document.getElementById('top-eventos');
-                if (d.top_eventos.length === 0) {
-                    te.innerHTML = '<p class="text-muted-soft">Nenhum evento ainda.</p>';
-                } else {
-                    te.innerHTML = `
-                        <table class="cb-table">
-                            <thead>
-                                <tr><th>Evento</th><th>Categoria</th><th style="text-align:right;">Inscritos</th></tr>
-                            </thead>
-                            <tbody>
-                                ${d.top_eventos.map(t => `
-                                    <tr>
-                                        <td data-label="Evento" style="font-weight:600">${escapeHTML(t.titulo)}</td>
-                                        <td data-label="Categoria"><span class="badge-cat badge-cat--${t.modalidade.toLowerCase()}">${escapeHTML(t.modalidade)}</span></td>
-                                        <td data-label="Inscritos" style="text-align:right; font-weight:700;">${t.total_inscritos}</td>
-                                    </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
-                    `;
-                }
+                te.innerHTML = d.top_eventos.length === 0
+                    ? '<p class="text-muted-soft">Nenhum evento ainda.</p>'
+                    : `<table class="cb-table">
+                           <thead><tr><th>Evento</th><th>Categoria</th><th class="text-right">Inscritos</th></tr></thead>
+                           <tbody>${d.top_eventos.map(t => `
+                               <tr>
+                                   <td data-label="Evento" class="text-bold">${escapeHTML(t.titulo)}</td>
+                                   <td data-label="Categoria"><span class="badge-cat badge-cat--${t.modalidade.toLowerCase()}">${escapeHTML(t.modalidade)}</span></td>
+                                   <td data-label="Inscritos" class="text-right text-bold">${t.total_inscritos}</td>
+                               </tr>`).join('')}
+                           </tbody>
+                       </table>`;
             } catch (err) {
                 if (err.status === 401) { sair(true); return; }
                 toast('Erro ao carregar estatísticas', 'error');
@@ -357,33 +228,28 @@
             cont.innerHTML = '<div class="cb-spinner"></div>';
             try {
                 const resposta = await API.get('/eventos?limite=100');
-                const eventos = Array.isArray(resposta) ? resposta : (resposta.eventos ?? []);
+                const eventos  = Array.isArray(resposta) ? resposta : (resposta.eventos ?? []);
                 if (eventos.length === 0) {
                     cont.innerHTML = `
                         <div class="empty-state cb-card">
                             <div class="ic"><i class="bi bi-calendar-plus"></i></div>
                             <h4>Sem eventos ainda</h4>
                             <p>Clique em "Novo evento" para começar.</p>
-                        </div>
-                    `;
+                        </div>`;
                     return;
                 }
                 cont.innerHTML = `
                     <table class="cb-table">
                         <thead>
                             <tr>
-                                <th>Título</th>
-                                <th>Categoria</th>
-                                <th>Data</th>
-                                <th>Local</th>
-                                <th>Inscritos</th>
-                                <th style="text-align:right;">Ações</th>
+                                <th>Título</th><th>Categoria</th><th>Data</th>
+                                <th>Local</th><th>Inscritos</th><th class="text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${eventos.map(ev => `
                                 <tr>
-                                    <td data-label="Título" style="font-weight:600">${escapeHTML(ev.titulo)}</td>
+                                    <td data-label="Título" class="text-bold">${escapeHTML(ev.titulo)}</td>
                                     <td data-label="Categoria">
                                         <span class="badge-cat badge-cat--${ev.modalidade.toLowerCase()}">${escapeHTML(ev.modalidade)}</span>
                                     </td>
@@ -392,25 +258,22 @@
                                     <td data-label="Inscritos">
                                         <strong>${ev.total_inscritos}</strong>${ev.vagas > 0 ? `<span class="text-muted-soft"> / ${ev.vagas}</span>` : ''}
                                     </td>
-                                    <td data-label="Ações" style="text-align:right;">
-                                        <button class="btn-cb btn-cb--sm btn-cb--soft" onclick="verInscritos(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g, "\\'")}')">
+                                    <td data-label="Ações" class="text-right">
+                                        <button class="btn-cb btn-cb--sm btn-cb--soft" onclick="verInscritos(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}')">
                                             <i class="bi bi-people"></i>
                                         </button>
                                         <button class="btn-cb btn-cb--sm btn-cb--ghost" onclick="editarEvento(${ev.id})">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <button class="btn-cb btn-cb--sm btn-cb--danger" onclick="deletarEvento(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g, "\\'")}')">
+                                        <button class="btn-cb btn-cb--sm btn-cb--danger" onclick="deletarEvento(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}')">
                                             <i class="bi bi-trash3"></i>
                                         </button>
                                     </td>
-                                </tr>
-                            `).join('')}
+                                </tr>`).join('')}
                         </tbody>
-                    </table>
-                `;
+                    </table>`;
             } catch (err) {
                 if (err.status === 401) { sair(true); return; }
-                console.error('[admin] carregarEventosAdmin:', err);
                 toast('Erro ao carregar eventos', 'error');
             }
         }
@@ -436,18 +299,18 @@
                                 <label>Modalidade</label>
                                 <select id="ev-modalidade" required>
                                     <option value="">Escolha...</option>
-                                    <option value="Futebol"  ${evento && evento.modalidade==='Futebol'  ? 'selected' : ''}>Futebol</option>
-                                    <option value="Zumba"    ${evento && evento.modalidade==='Zumba'    ? 'selected' : ''}>Zumba</option>
-                                    <option value="Capoeira" ${evento && evento.modalidade==='Capoeira' ? 'selected' : ''}>Capoeira</option>
-                                    <option value="Outros"   ${evento && evento.modalidade==='Outros'   ? 'selected' : ''}>Outros</option>
+                                    <option value="Futebol"  ${evento?.modalidade==='Futebol'  ? 'selected':''}>Futebol</option>
+                                    <option value="Zumba"    ${evento?.modalidade==='Zumba'    ? 'selected':''}>Zumba</option>
+                                    <option value="Capoeira" ${evento?.modalidade==='Capoeira' ? 'selected':''}>Capoeira</option>
+                                    <option value="Outros"   ${evento?.modalidade==='Outros'   ? 'selected':''}>Outros</option>
                                 </select>
                             </div>
                             <div class="field">
                                 <label>Cor de destaque</label>
                                 <select id="ev-cor">
-                                    <option value="blue"   ${evento && evento.cor==='blue'   ? 'selected' : ''}>Verde (padrão)</option>
-                                    <option value="orange" ${evento && evento.cor==='orange' ? 'selected' : ''}>Laranja</option>
-                                    <option value="pink"   ${evento && evento.cor==='pink'   ? 'selected' : ''}>Rosa</option>
+                                    <option value="blue"   ${evento?.cor==='blue'   ? 'selected':''}>Verde (padrão)</option>
+                                    <option value="orange" ${evento?.cor==='orange' ? 'selected':''}>Laranja</option>
+                                    <option value="pink"   ${evento?.cor==='pink'   ? 'selected':''}>Rosa</option>
                                 </select>
                             </div>
                         </div>
@@ -465,7 +328,7 @@
                             <div class="field">
                                 <label>Data/hora real (para filtros)</label>
                                 <input id="ev-data-inicio" type="datetime-local"
-                                    value="${evento && evento.data_inicio ? evento.data_inicio.slice(0,16) : ''}">
+                                    value="${evento?.data_inicio ? evento.data_inicio.slice(0,16) : ''}">
                             </div>
                             <div class="field">
                                 <label>Bairro do evento</label>
@@ -481,8 +344,7 @@
                         <div class="field">
                             <label>Imagem do evento</label>
                             ${evento.imagem_url ? `<img src="${evento.imagem_url}" style="width:100%;height:120px;object-fit:cover;border-radius:8px;margin-bottom:0.5rem;">` : ''}
-                            <input id="ev-imagem" type="file" accept="image/jpeg,image/png,image/webp,image/gif"
-                                style="font-size:0.85rem;">
+                            <input id="ev-imagem" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
                             <small class="text-muted-soft">JPG, PNG, WebP ou GIF — máx. 5 MB</small>
                         </div>` : ''}
                         <div class="flex gap-2 mt-2">
@@ -495,12 +357,11 @@
                 </div>
             `;
             document.body.appendChild(bd);
-
-            bd.addEventListener('click', (e) => {
+            bd.addEventListener('click', e => {
                 if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
             });
 
-            document.getElementById('form-evento').addEventListener('submit', async (e) => {
+            document.getElementById('form-evento').addEventListener('submit', async e => {
                 e.preventDefault();
                 const dataInicioVal = document.getElementById('ev-data-inicio')?.value;
                 const payload = {
@@ -525,10 +386,8 @@
                         evSalvo = await API.post('/eventos', payload);
                         toast('Evento criado!', 'success');
                     }
-
-                    // Upload de imagem se selecionada
                     const inputImg = document.getElementById('ev-imagem');
-                    if (inputImg && inputImg.files && inputImg.files[0]) {
+                    if (inputImg?.files?.[0]) {
                         const form = new FormData();
                         form.append('arquivo', inputImg.files[0]);
                         try {
@@ -538,7 +397,6 @@
                             toast('Evento salvo, mas falha ao enviar imagem: ' + (imgErr.message || ''), 'error');
                         }
                     }
-
                     bd.remove();
                     carregarEventosAdmin();
                 } catch (err) {
@@ -549,29 +407,19 @@
         }
 
         window.editarEvento = async function(id) {
-            try {
-                const ev = await API.get(`/eventos/${id}`);
-                abrirFormEvento(ev);
-            } catch (err) {
-                toast('Erro ao carregar evento', 'error');
-            }
+            try { abrirFormEvento(await API.get(`/eventos/${id}`)); }
+            catch { toast('Erro ao carregar evento', 'error'); }
         };
 
         window.deletarEvento = async function(id, titulo) {
             const ok = await confirmar({
                 titulo: 'Excluir evento?',
                 mensagem: `"${titulo}" será removido junto com todas as inscrições. Esta ação não pode ser desfeita.`,
-                textoOk: 'Sim, excluir',
-                perigoso: true,
+                textoOk: 'Sim, excluir', perigoso: true,
             });
             if (!ok) return;
-            try {
-                await API.delete(`/eventos/${id}`);
-                toast('Evento excluído', 'info');
-                carregarEventosAdmin();
-            } catch (err) {
-                toast(err.message || 'Erro', 'error');
-            }
+            try { await API.delete(`/eventos/${id}`); toast('Evento excluído', 'info'); carregarEventosAdmin(); }
+            catch (err) { toast(err.message || 'Erro', 'error'); }
         };
 
         window.verInscritos = async function(id, titulo) {
@@ -582,35 +430,30 @@
                 const corpo = lista.length === 0
                     ? '<p class="text-muted-soft">Nenhum inscrito ainda.</p>'
                     : `<table class="cb-table">
-                        <thead><tr><th>Nome</th><th>E-mail</th><th>Bairro</th></tr></thead>
-                        <tbody>
-                            ${lista.map(u => `
-                                <tr>
-                                    <td data-label="Nome">${escapeHTML(u.nome)}</td>
-                                    <td data-label="E-mail" class="text-muted-soft">${escapeHTML(u.email)}</td>
-                                    <td data-label="Bairro" class="text-muted-soft">${escapeHTML(u.bairro || '—')}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
+                           <thead><tr><th>Nome</th><th>E-mail</th><th>Bairro</th></tr></thead>
+                           <tbody>${lista.map(u => `
+                               <tr>
+                                   <td data-label="Nome">${escapeHTML(u.nome)}</td>
+                                   <td data-label="E-mail" class="text-muted-soft">${escapeHTML(u.email)}</td>
+                                   <td data-label="Bairro" class="text-muted-soft">${escapeHTML(u.bairro || '—')}</td>
+                               </tr>`).join('')}
+                           </tbody>
                        </table>`;
                 bd.innerHTML = `
-                    <div class="cb-modal" style="max-width: 640px;">
+                    <div class="cb-modal cb-modal--wide">
                         <h3>${escapeHTML(titulo)}</h3>
-                        <p class="text-muted-soft" style="margin-top: -0.3rem;">${lista.length} ${lista.length === 1 ? 'inscrito' : 'inscritos'}</p>
-                        <div style="margin-top: 1rem;">${corpo}</div>
+                        <p class="text-muted-soft mt-neg">${lista.length} ${lista.length === 1 ? 'inscrito' : 'inscritos'}</p>
+                        <div class="mt-2">${corpo}</div>
                         <div class="flex gap-2 mt-2">
                             ${lista.length > 0 ? `<a href="/admin/eventos/${id}/inscritos/csv" download class="btn-cb btn-cb--soft btn-cb--block"><i class="bi bi-download"></i> Exportar CSV</a>` : ''}
                             <button class="btn-cb btn-cb--ghost btn-cb--block" data-close>Fechar</button>
                         </div>
-                    </div>
-                `;
+                    </div>`;
                 document.body.appendChild(bd);
-                bd.addEventListener('click', (e) => {
+                bd.addEventListener('click', e => {
                     if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
                 });
-            } catch (err) {
-                toast('Erro ao carregar inscritos', 'error');
-            }
+            } catch { toast('Erro ao carregar inscritos', 'error'); }
         };
 
         document.getElementById('btn-novo-evento').addEventListener('click', () => abrirFormEvento());
@@ -631,8 +474,8 @@
                     <table class="cb-table">
                         <thead>
                             <tr>
-                                <th>Nome</th><th>E-mail</th><th>Bairro</th><th>Função</th><th>Status</th>
-                                <th style="text-align:right;">Ações</th>
+                                <th>Nome</th><th>E-mail</th><th>Bairro</th>
+                                <th>Função</th><th>Status</th><th class="text-right">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -640,20 +483,18 @@
                                 const ehVoce = u.id === usuario.id;
                                 return `
                                 <tr>
-                                    <td data-label="Nome" style="font-weight:600;">
-                                        ${escapeHTML(u.nome)} ${ehVoce ? '<span class="text-muted-soft" style="font-weight:400;">(você)</span>' : ''}
+                                    <td data-label="Nome" class="text-bold">
+                                        ${escapeHTML(u.nome)}${ehVoce ? ' <span class="text-muted-soft text-normal">(você)</span>' : ''}
                                     </td>
                                     <td data-label="E-mail" class="text-muted-soft">${escapeHTML(u.email)}</td>
                                     <td data-label="Bairro" class="text-muted-soft">${escapeHTML(u.bairro || '—')}</td>
                                     <td data-label="Função">
-                                        <span class="status-pill ${u.role === 'admin' ? 'status-pill--admin' : ''}">${u.role}</span>
+                                        <span class="status-pill ${u.role==='admin' ? 'status-pill--admin' : ''}">${u.role}</span>
                                     </td>
                                     <td data-label="Status">
-                                        <span class="status-pill status-pill--${u.ativo ? 'ativo' : 'inativo'}">
-                                            ${u.ativo ? 'Ativo' : 'Inativo'}
-                                        </span>
+                                        <span class="status-pill status-pill--${u.ativo ? 'ativo' : 'inativo'}">${u.ativo ? 'Ativo' : 'Inativo'}</span>
                                     </td>
-                                    <td data-label="Ações" style="text-align:right;">
+                                    <td data-label="Ações" class="text-right">
                                         ${ehVoce ? '' : `
                                             <button class="btn-cb btn-cb--sm btn-cb--ghost" onclick="alterarRole(${u.id}, '${u.role}')">
                                                 ${u.role === 'admin' ? 'Tornar morador' : 'Tornar admin'}
@@ -661,17 +502,14 @@
                                             <button class="btn-cb btn-cb--sm btn-cb--soft" onclick="alterarAtivo(${u.id}, ${u.ativo})">
                                                 ${u.ativo ? 'Desativar' : 'Ativar'}
                                             </button>
-                                            <button class="btn-cb btn-cb--sm btn-cb--danger" onclick="excluirUsuario(${u.id}, '${escapeHTML(u.nome).replace(/'/g, "\\'")}')">
+                                            <button class="btn-cb btn-cb--sm btn-cb--danger" onclick="excluirUsuario(${u.id}, '${escapeHTML(u.nome).replace(/'/g,"\\'")}')">
                                                 <i class="bi bi-trash3"></i>
-                                            </button>
-                                        `}
+                                            </button>`}
                                     </td>
-                                </tr>
-                                `;
+                                </tr>`;
                             }).join('')}
                         </tbody>
-                    </table>
-                `;
+                    </table>`;
             } catch (err) {
                 if (err.status === 401) { sair(true); return; }
                 toast('Erro ao carregar usuários', 'error');
@@ -680,17 +518,10 @@
 
         window.alterarRole = async function(id, atual) {
             const novo = atual === 'admin' ? 'morador' : 'admin';
-            const ok = await confirmar({
-                titulo: `Alterar função?`,
-                mensagem: `Este usuário passará a ser <strong>${novo}</strong>.`,
-                textoOk: 'Confirmar',
-            });
+            const ok = await confirmar({ titulo: 'Alterar função?', mensagem: `Este usuário passará a ser <strong>${novo}</strong>.`, textoOk: 'Confirmar' });
             if (!ok) return;
-            try {
-                await API.put(`/admin/usuarios/${id}`, { role: novo });
-                toast('Função alterada', 'success');
-                carregarUsuarios();
-            } catch (err) { toast(err.message, 'error'); }
+            try { await API.put(`/admin/usuarios/${id}`, { role: novo }); toast('Função alterada', 'success'); carregarUsuarios(); }
+            catch (err) { toast(err.message, 'error'); }
         };
 
         window.alterarAtivo = async function(id, ativoAtual) {
@@ -702,22 +533,13 @@
         };
 
         window.excluirUsuario = async function(id, nome) {
-            const ok = await confirmar({
-                titulo: 'Excluir usuário?',
-                mensagem: `<strong>${nome}</strong> será removido permanentemente, junto com suas inscrições.`,
-                textoOk: 'Excluir', perigoso: true,
-            });
+            const ok = await confirmar({ titulo: 'Excluir usuário?', mensagem: `<strong>${nome}</strong> será removido permanentemente.`, textoOk: 'Excluir', perigoso: true });
             if (!ok) return;
-            try {
-                await API.delete(`/admin/usuarios/${id}`);
-                toast('Usuário excluído', 'info');
-                carregarUsuarios();
-            } catch (err) { toast(err.message, 'error'); }
+            try { await API.delete(`/admin/usuarios/${id}`); toast('Usuário excluído', 'info'); carregarUsuarios(); }
+            catch (err) { toast(err.message, 'error'); }
         };
 
-        // ----------------------------------------------------------
         // Boot
-        // ----------------------------------------------------------
         carregarDashboard();
     </script>
 </body>

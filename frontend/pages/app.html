@@ -61,14 +61,12 @@
         </div>
 
         <!-- Busca + ordenação -->
-        <div style="padding: 0 1rem; display:flex; gap:0.5rem; align-items:center;">
-            <div style="flex:1;position:relative;">
-                <i class="bi bi-search" style="position:absolute;left:0.75rem;top:50%;transform:translateY(-50%);color:var(--ink-400);pointer-events:none;"></i>
-                <input id="campo-busca" type="search" placeholder="Buscar eventos..."
-                    style="width:100%;padding:0.55rem 0.75rem 0.55rem 2.2rem;border:1.5px solid var(--ink-200);border-radius:99px;font-size:0.9rem;background:#fff;box-sizing:border-box;">
+        <div class="search-bar-row">
+            <div class="search-input-wrap">
+                <i class="bi bi-search search-icon"></i>
+                <input id="campo-busca" type="search" placeholder="Buscar eventos...">
             </div>
-            <select id="select-ordem"
-                style="padding:0.55rem 0.7rem;border:1.5px solid var(--ink-200);border-radius:99px;font-size:0.85rem;background:#fff;cursor:pointer;">
+            <select id="select-ordem">
                 <option value="recentes">Mais recentes</option>
                 <option value="antigos">Mais antigos</option>
                 <option value="inscritos">Mais inscritos</option>
@@ -77,33 +75,33 @@
         </div>
 
         <!-- Filtros avançados (expansível) -->
-        <div style="padding: 0 1rem;">
-            <button id="btn-filtros-avancados" class="btn-cb btn-cb--soft btn-cb--sm" style="width:100%;justify-content:space-between;display:flex;align-items:center;">
+        <div class="filtros-wrap">
+            <button id="btn-filtros-avancados" class="btn-cb btn-cb--soft btn-cb--sm">
                 <span><i class="bi bi-sliders"></i> Filtros avançados</span>
                 <i class="bi bi-chevron-down" id="ic-filtros"></i>
             </button>
-            <div id="painel-filtros" style="display:none;background:#fff;border-radius:12px;padding:1rem;margin-top:0.5rem;box-shadow:0 2px 8px rgba(0,0,0,.06);">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.7rem;margin-bottom:0.7rem;">
-                    <div class="field" style="margin:0;">
-                        <label style="font-size:0.8rem;">Data inicial</label>
-                        <input id="f-data-inicio" type="date" style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+            <div id="painel-filtros">
+                <div class="filtros-grid">
+                    <div class="field">
+                        <label>Data inicial</label>
+                        <input id="f-data-inicio" type="date">
                     </div>
-                    <div class="field" style="margin:0;">
-                        <label style="font-size:0.8rem;">Data final</label>
-                        <input id="f-data-fim" type="date" style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+                    <div class="field">
+                        <label>Data final</label>
+                        <input id="f-data-fim" type="date">
                     </div>
                 </div>
-                <div class="field" style="margin:0 0 0.7rem;">
-                    <label style="font-size:0.8rem;">Bairro do evento</label>
-                    <input id="f-bairro" type="text" placeholder="Ex: Centro, Asa Norte..." style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+                <div class="field">
+                    <label>Bairro do evento</label>
+                    <input id="f-bairro" type="text" placeholder="Ex: Centro, Asa Norte...">
                 </div>
-                <div class="field" style="margin:0 0 0.7rem;">
-                    <label style="font-size:0.8rem;">Local / espaço</label>
-                    <input id="f-local" type="text" placeholder="Ex: Quadra, Praça..." style="padding:0.4rem 0.6rem;font-size:0.85rem;">
+                <div class="field">
+                    <label>Local / espaço</label>
+                    <input id="f-local" type="text" placeholder="Ex: Quadra, Praça...">
                 </div>
-                <div style="display:flex;gap:0.5rem;">
-                    <button id="btn-aplicar-filtros" class="btn-cb btn-cb--primary btn-cb--sm" style="flex:1;">Aplicar</button>
-                    <button id="btn-limpar-filtros" class="btn-cb btn-cb--soft btn-cb--sm" style="flex:1;">Limpar</button>
+                <div class="filtros-actions">
+                    <button id="btn-aplicar-filtros" class="btn-cb btn-cb--primary btn-cb--sm">Aplicar</button>
+                    <button id="btn-limpar-filtros" class="btn-cb btn-cb--soft btn-cb--sm">Limpar</button>
                 </div>
             </div>
         </div>
@@ -137,36 +135,32 @@
         // Guarda: precisa estar logado (qualquer role)
         // ------------------------------------------------------------
         const usuario = exigirLogin('qualquer');
-        if (!usuario) {
-            // exigirLogin já redireciona; abortamos
-            throw new Error('not authenticated');
-        }
+        if (!usuario) throw new Error('not authenticated');
 
         // ------------------------------------------------------------
         // Configuração inicial do header
         // ------------------------------------------------------------
-        const primeiroNome = usuario.nome.split(' ')[0];
         document.getElementById('user-avatar').textContent = iniciais(usuario.nome);
-        document.getElementById('user-name').textContent = primeiroNome;
+        document.getElementById('user-name').textContent = usuario.nome.split(' ')[0];
         const hora = new Date().getHours();
-        const saudacao = hora < 12 ? 'Bom dia,' : hora < 18 ? 'Boa tarde,' : 'Boa noite,';
-        document.getElementById('hello-text').textContent = saudacao;
+        document.getElementById('hello-text').textContent =
+            hora < 12 ? 'Bom dia,' : hora < 18 ? 'Boa tarde,' : 'Boa noite,';
 
         // ------------------------------------------------------------
         // Estado em memória
         // ------------------------------------------------------------
-        let aba = 'todos';              // 'todos' ou 'meus'
-        let filtro = 'Todos';           // modalidade
-        let ordem = 'recentes';         // recentes | antigos | inscritos | vagas
-        let buscaTexto = '';            // campo de busca livre
+        let aba = 'todos';
+        let filtro = 'Todos';
+        let ordem = 'recentes';
+        let buscaTexto = '';
         let cacheTodos = { total: 0, tem_mais: false, eventos: [] };
-        let cacheMeus  = [];            // GET /eventos/meus (sem paginação)
-        let filtrosAvancados = {};      // { data_inicio, data_fim, bairro, local }
+        let cacheMeus  = [];
+        let filtrosAvancados = {};
         let offsetAtual = 0;
         const LIMITE = 12;
 
         // ------------------------------------------------------------
-        // Filtros avançados — toggle e lógica
+        // Filtros avançados — toggle
         // ------------------------------------------------------------
         document.getElementById('btn-filtros-avancados').addEventListener('click', () => {
             const painel = document.getElementById('painel-filtros');
@@ -191,41 +185,37 @@
 
         document.getElementById('btn-limpar-filtros').addEventListener('click', () => {
             filtrosAvancados = {};
-            document.getElementById('f-data-inicio').value = '';
-            document.getElementById('f-data-fim').value = '';
-            document.getElementById('f-bairro').value = '';
-            document.getElementById('f-local').value = '';
+            ['f-data-inicio','f-data-fim','f-bairro','f-local'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
             carregarFeed();
         });
 
-        // Busca por texto (debounce de 400ms)
+        // Busca (debounce 400ms)
         let _buscaTimer = null;
-        document.getElementById('campo-busca').addEventListener('input', (e) => {
+        document.getElementById('campo-busca').addEventListener('input', e => {
             clearTimeout(_buscaTimer);
-            _buscaTimer = setTimeout(() => {
-                buscaTexto = e.target.value.trim();
-                carregarFeed();
-            }, 400);
+            _buscaTimer = setTimeout(() => { buscaTexto = e.target.value.trim(); carregarFeed(); }, 400);
         });
 
         // Ordenação
-        document.getElementById('select-ordem').addEventListener('change', (e) => {
+        document.getElementById('select-ordem').addEventListener('change', e => {
             ordem = e.target.value;
             carregarFeed();
         });
 
         // ------------------------------------------------------------
-        // Helpers de query string
+        // Query string
         // ------------------------------------------------------------
         function buildParams(offset = 0) {
-            const params = new URLSearchParams();
-            if (filtro !== 'Todos') params.set('modalidade', filtro);
-            if (buscaTexto) params.set('q', buscaTexto);
-            if (ordem !== 'recentes') params.set('ordem', ordem);
-            Object.entries(filtrosAvancados).forEach(([k, v]) => params.set(k, v));
-            params.set('limite', LIMITE);
-            params.set('offset', offset);
-            return params.toString();
+            const p = new URLSearchParams();
+            if (filtro !== 'Todos') p.set('modalidade', filtro);
+            if (buscaTexto) p.set('q', buscaTexto);
+            if (ordem !== 'recentes') p.set('ordem', ordem);
+            Object.entries(filtrosAvancados).forEach(([k, v]) => p.set(k, v));
+            p.set('limite', LIMITE);
+            p.set('offset', offset);
+            return p.toString();
         }
 
         // ------------------------------------------------------------
@@ -234,11 +224,10 @@
         function renderSkeleton(n = 4) {
             return Array.from({ length: n }, () => `
                 <div class="skeleton-card">
-                    <div class="skeleton skeleton-img" style="display:none;" data-skel-img></div>
-                    <div class="skeleton skeleton-line skeleton-line--sm" style="margin-bottom:10px;"></div>
+                    <div class="skeleton skeleton-line skeleton-line--sm mb-1"></div>
                     <div class="skeleton skeleton-line skeleton-line--title"></div>
                     <div class="skeleton skeleton-line skeleton-line--lg"></div>
-                    <div class="skeleton skeleton-line skeleton-line--md" style="margin-bottom:12px;"></div>
+                    <div class="skeleton skeleton-line skeleton-line--md mb-2"></div>
                     <div class="skeleton skeleton-line skeleton-line--md"></div>
                     <div class="skeleton-footer">
                         <div class="skeleton skeleton-line" style="width:90px;height:10px;"></div>
@@ -249,7 +238,7 @@
         }
 
         // ------------------------------------------------------------
-        // Carregar dados (primeira página — reseta o feed)
+        // Carregar dados (primeira página)
         // ------------------------------------------------------------
         async function carregarFeed() {
             offsetAtual = 0;
@@ -276,11 +265,9 @@
             }
         }
 
-        // Carrega a próxima página e ACRESCENTA ao feed
         async function carregarMais() {
             const btn = document.getElementById('btn-carregar-mais');
             if (btn) { btn.disabled = true; btn.textContent = 'Carregando...'; }
-
             offsetAtual += LIMITE;
             try {
                 const pagina = await API.get(`/eventos?${buildParams(offsetAtual)}`);
@@ -289,7 +276,7 @@
                 cacheTodos.total = pagina.total;
                 renderizarFeed(true);
             } catch (err) {
-                offsetAtual -= LIMITE; // reverte
+                offsetAtual -= LIMITE;
                 toast('Erro ao carregar mais eventos', 'error');
                 if (btn) { btn.disabled = false; btn.textContent = 'Carregar mais'; }
             }
@@ -312,7 +299,6 @@
                 if (lista.length === 0) { feed.innerHTML = renderVazio(); return; }
 
                 if (append) {
-                    // Remove botão antigo antes de adicionar novos cards + botão novo
                     document.getElementById('btn-carregar-mais')?.remove();
                 } else {
                     feed.innerHTML = '';
@@ -320,20 +306,17 @@
 
                 feed.insertAdjacentHTML('beforeend', lista.slice(append ? lista.length - LIMITE : 0).map(renderCard).join(''));
 
-                // Botão "Carregar mais"
                 document.getElementById('btn-carregar-mais')?.remove();
                 if (cacheTodos.tem_mais) {
                     feed.insertAdjacentHTML('beforeend', `
-                        <div style="text-align:center;padding:1rem 0 0.5rem;">
-                            <button id="btn-carregar-mais" class="btn-cb btn-cb--soft"
-                                    onclick="carregarMais()" style="min-width:160px;">
+                        <div class="carregar-mais-wrap">
+                            <button id="btn-carregar-mais" class="btn-cb btn-cb--soft" onclick="carregarMais()">
                                 <i class="bi bi-arrow-down-circle"></i> Carregar mais
                             </button>
                         </div>
                     `);
                 }
             } else {
-                // Aba "meus" — sem paginação
                 let lista = cacheMeus;
                 if (filtro !== 'Todos') lista = lista.filter(e => e.modalidade === filtro);
                 if (lista.length === 0) { feed.innerHTML = renderVazio(); return; }
@@ -343,44 +326,47 @@
         }
 
         function renderVazio() {
-            if (aba === 'meus') {
-                return `
-                    <div class="empty-state">
-                        <div class="ic"><i class="bi bi-bookmark"></i></div>
-                        <h4>Você ainda não está inscrito em nada</h4>
-                        <p>Volte para "Início" e confirme presença nos eventos que te interessam.</p>
-                    </div>
-                `;
-            }
+            if (aba === 'meus') return `
+                <div class="empty-state">
+                    <div class="ic"><i class="bi bi-bookmark"></i></div>
+                    <h4>Você ainda não está inscrito em nada</h4>
+                    <p>Volte para "Início" e confirme presença nos eventos que te interessam.</p>
+                </div>`;
             return `
                 <div class="empty-state">
                     <div class="ic"><i class="bi bi-calendar-x"></i></div>
                     <h4>Nenhum evento nessa categoria</h4>
                     <p>Tente filtrar por outra modalidade.</p>
-                </div>
-            `;
+                </div>`;
         }
 
         function renderCard(ev) {
-            const cls =
-                ev.modalidade === 'Zumba'    ? 'event-card--zumba'    :
-                ev.modalidade === 'Capoeira' ? 'event-card--capoeira' :
-                ev.modalidade === 'Outros'   ? 'event-card--outros'   : '';
+            const modCls = {
+                Zumba: 'event-card--zumba', Capoeira: 'event-card--capoeira', Outros: 'event-card--outros'
+            }[ev.modalidade] || '';
 
-            const catBadge =
-                ev.modalidade === 'Futebol'  ? 'badge-cat--futebol'   :
-                ev.modalidade === 'Zumba'    ? 'badge-cat--zumba'     :
-                ev.modalidade === 'Capoeira' ? 'badge-cat--capoeira'  : 'badge-cat--outros';
+            const badgeCls = {
+                Futebol: 'badge-cat--futebol', Zumba: 'badge-cat--zumba',
+                Capoeira: 'badge-cat--capoeira'
+            }[ev.modalidade] || 'badge-cat--outros';
 
-            const ic =
-                ev.modalidade === 'Futebol'  ? 'bi-trophy'             :
-                ev.modalidade === 'Zumba'    ? 'bi-music-note-beamed'  :
-                ev.modalidade === 'Capoeira' ? 'bi-person-arms-up'     : 'bi-stars';
+            const ic = {
+                Futebol: 'bi-trophy', Zumba: 'bi-music-note-beamed',
+                Capoeira: 'bi-person-arms-up'
+            }[ev.modalidade] || 'bi-stars';
 
             const cheio = ev.vagas > 0 && ev.total_inscritos >= ev.vagas;
             const vagasTxt = ev.vagas > 0
                 ? `${ev.total_inscritos}/${ev.vagas} vagas`
                 : `${ev.total_inscritos} confirmados`;
+
+            // Barra de progresso de vagas
+            let vagasBar = '';
+            if (ev.vagas > 0) {
+                const pct = Math.min((ev.total_inscritos / ev.vagas) * 100, 100);
+                const fillCls = pct >= 90 ? 'vagas-bar-fill--danger' : pct >= 60 ? 'vagas-bar-fill--warn' : '';
+                vagasBar = `<div class="vagas-bar"><div class="vagas-bar-fill ${fillCls}" style="width:${pct}%"></div></div>`;
+            }
 
             const acaoBtn = ev.inscrito
                 ? `<button class="btn-cb btn-cb--sm btn-inscricao is-inscrito" onclick="cancelarInscricao(${ev.id})">
@@ -393,26 +379,25 @@
                        </button>`);
 
             const descricao = ev.descricao
-                ? `<p style="font-size: 0.86rem; color: var(--ink-500); margin: 0.4rem 0 0.6rem;">${escapeHTML(ev.descricao)}</p>`
+                ? `<p class="event-card-desc">${escapeHTML(ev.descricao)}</p>`
                 : '';
 
-            const imagemBanner = ev.imagem_url
-                ? `<div style="margin:-0 -0 0.8rem;border-radius:10px;overflow:hidden;max-height:160px;">
-                       <img src="${ev.imagem_url}" alt="Imagem do evento" loading="lazy"
-                            style="width:100%;height:160px;object-fit:cover;display:block;">
-                   </div>`
-                : '';
+            const banner = ev.imagem_url
+                ? `<div class="event-card-image"><img src="${ev.imagem_url}" alt="Imagem do evento" loading="lazy"></div>`
+                : `<div class="event-card-banner event-card-banner--${ev.modalidade.toLowerCase()}"><i class="bi ${ic}"></i></div>`;
 
             const bairroInfo = ev.bairro
                 ? `<div class="row"><i class="bi bi-map"></i> ${escapeHTML(ev.bairro)}</div>`
                 : '';
 
+            const tituloEsc = escapeHTML(ev.titulo).replace(/'/g, "\\'");
+            const localEsc  = escapeHTML(ev.local).replace(/'/g, "\\'");
+            const dataEsc   = escapeHTML(ev.data).replace(/'/g, "\\'");
+
             return `
-                <article class="event-card ${cls}">
-                    ${imagemBanner}
-                    <span class="badge-cat ${catBadge}">
-                        <i class="bi ${ic}"></i> ${ev.modalidade}
-                    </span>
+                <article class="event-card ${modCls}">
+                    ${banner}
+                    <span class="badge-cat ${badgeCls}"><i class="bi ${ic}"></i> ${ev.modalidade}</span>
                     <h3>${escapeHTML(ev.titulo)}</h3>
                     ${descricao}
                     <div class="meta">
@@ -421,14 +406,19 @@
                         ${bairroInfo}
                     </div>
                     <div class="footer-row">
-                        <span class="vagas-info ${cheio ? 'is-cheio' : ''}">
-                            <i class="bi bi-people"></i> ${vagasTxt}
-                        </span>
-                        <div style="display:flex;gap:0.4rem;align-items:center;">
-                            <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Comentários" onclick="abrirComentarios(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}')">
+                        <div>
+                            <span class="vagas-info ${cheio ? 'is-cheio' : ''}">
+                                <i class="bi bi-people"></i> ${vagasTxt}
+                            </span>
+                            ${vagasBar}
+                        </div>
+                        <div class="event-card-actions">
+                            <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Comentários"
+                                onclick="abrirComentarios(${ev.id}, '${tituloEsc}')">
                                 <i class="bi bi-chat"></i>
                             </button>
-                            <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Compartilhar" onclick="compartilharEvento(${ev.id}, '${escapeHTML(ev.titulo).replace(/'/g,"\\'")}', '${escapeHTML(ev.local).replace(/'/g,"\\'")}', '${escapeHTML(ev.data).replace(/'/g,"\\'")}')">
+                            <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Compartilhar"
+                                onclick="compartilharEvento(${ev.id}, '${tituloEsc}', '${localEsc}', '${dataEsc}')">
                                 <i class="bi bi-share"></i>
                             </button>
                             ${acaoBtn}
@@ -478,38 +468,32 @@
         };
 
         // ------------------------------------------------------------
-        // Eventos de UI: filtros e abas
+        // Filtros e abas
         // ------------------------------------------------------------
         document.querySelectorAll('#filtro-row .chip').forEach(chip => {
             chip.addEventListener('click', () => {
                 document.querySelectorAll('#filtro-row .chip').forEach(c => c.classList.remove('is-active'));
                 chip.classList.add('is-active');
                 filtro = chip.dataset.filtro;
-                carregarFeed(); // sempre busca do zero ao mudar filtro
+                carregarFeed();
             });
         });
 
         function trocarAba(novaAba) {
             aba = novaAba;
-            // Chip no topo
-            document.querySelectorAll('#aba-row .chip').forEach(c => {
-                c.classList.toggle('is-active', c.dataset.aba === aba);
-            });
-            // Nav inferior
+            document.querySelectorAll('#aba-row .chip').forEach(c =>
+                c.classList.toggle('is-active', c.dataset.aba === aba));
             document.querySelectorAll('.bottom-nav__item').forEach(b => {
                 if (b.dataset.aba) b.classList.toggle('is-active', b.dataset.aba === aba);
             });
             carregarFeed();
         }
 
-        document.querySelectorAll('#aba-row .chip').forEach(c => {
-            c.addEventListener('click', () => trocarAba(c.dataset.aba));
-        });
-        document.querySelectorAll('.bottom-nav__item[data-aba]').forEach(b => {
-            b.addEventListener('click', () => trocarAba(b.dataset.aba));
-        });
+        document.querySelectorAll('#aba-row .chip').forEach(c =>
+            c.addEventListener('click', () => trocarAba(c.dataset.aba)));
+        document.querySelectorAll('.bottom-nav__item[data-aba]').forEach(b =>
+            b.addEventListener('click', () => trocarAba(b.dataset.aba)));
 
-        // Sair
         document.getElementById('btn-sair').addEventListener('click', async () => {
             const ok = await confirmar({
                 titulo: 'Sair da conta?',
@@ -520,7 +504,9 @@
             if (ok) sair();
         });
 
-        // Perfil — modal com visualização e edição
+        // ------------------------------------------------------------
+        // Perfil
+        // ------------------------------------------------------------
         document.getElementById('btn-perfil').addEventListener('click', () => abrirPerfil());
 
         function abrirPerfil(editando = false) {
@@ -531,14 +517,12 @@
                 bd.innerHTML = `
                     <div class="cb-modal">
                         <div class="text-center mb-2">
-                            <div class="avatar" style="margin:0 auto 0.8rem;width:72px;height:72px;font-size:1.6rem;">
-                                ${iniciais(usuario.nome)}
-                            </div>
-                            <h3 style="margin-bottom:0.2rem;">${escapeHTML(usuario.nome)}</h3>
-                            <p class="text-muted-soft" style="margin:0;">${escapeHTML(usuario.email)}</p>
+                            <div class="avatar perfil-avatar-lg">${iniciais(usuario.nome)}</div>
+                            <h3>${escapeHTML(usuario.nome)}</h3>
+                            <p class="text-muted-soft">${escapeHTML(usuario.email)}</p>
                             ${usuario.role === 'admin' ? '<span class="status-pill status-pill--admin mt-1">Administrador</span>' : ''}
                         </div>
-                        <div style="margin-top:1.2rem;font-size:0.9rem;color:var(--ink-700);">
+                        <div class="perfil-dados">
                             <p><strong>Bairro:</strong> ${escapeHTML(usuario.bairro || '—')}</p>
                             <p><strong>Telefone:</strong> ${escapeHTML(usuario.telefone || '—')}</p>
                         </div>
@@ -551,10 +535,8 @@
                         <button class="btn-cb btn-cb--ghost btn-cb--block mt-1" data-close>Fechar</button>
                     </div>
                 `;
-                document.body.appendChild(bd);
                 bd.querySelector('#btn-editar-perfil').addEventListener('click', () => {
-                    bd.remove();
-                    abrirPerfil(true);
+                    bd.remove(); abrirPerfil(true);
                 });
             } else {
                 bd.innerHTML = `
@@ -574,27 +556,23 @@
                                 <input id="p-telefone" placeholder="(00) 00000-0000" value="${escapeHTML(usuario.telefone || '')}">
                             </div>
                             <div class="field">
-                                <label>Nova senha <span class="text-muted-soft" style="font-weight:400;">(deixe em branco para manter)</span></label>
+                                <label>Nova senha <span class="senha-hint">(deixe em branco para manter)</span></label>
                                 <input id="p-senha" type="password" placeholder="Mínimo 6 caracteres" minlength="6">
                             </div>
                             <div class="flex gap-2 mt-2">
                                 <button type="button" class="btn-cb btn-cb--soft btn-cb--block" data-close>Cancelar</button>
-                                <button type="submit" class="btn-cb btn-cb--primary btn-cb--block" id="btn-salvar-perfil">
-                                    Salvar
-                                </button>
+                                <button type="submit" class="btn-cb btn-cb--primary btn-cb--block" id="btn-salvar-perfil">Salvar</button>
                             </div>
                         </form>
                     </div>
                 `;
-                document.body.appendChild(bd);
-
-                bd.querySelector('#form-perfil').addEventListener('submit', async (e) => {
+                bd.querySelector('#form-perfil').addEventListener('submit', async e => {
                     e.preventDefault();
                     const payload = {};
-                    const nome = bd.querySelector('#p-nome').value.trim();
-                    const bairro = bd.querySelector('#p-bairro').value.trim();
+                    const nome     = bd.querySelector('#p-nome').value.trim();
+                    const bairro   = bd.querySelector('#p-bairro').value.trim();
                     const telefone = bd.querySelector('#p-telefone').value.trim();
-                    const senha = bd.querySelector('#p-senha').value;
+                    const senha    = bd.querySelector('#p-senha').value;
 
                     if (nome !== usuario.nome) payload.nome = nome;
                     if (bairro !== (usuario.bairro || '')) payload.bairro = bairro || null;
@@ -607,10 +585,8 @@
                     btn.disabled = true;
                     try {
                         const atualizado = await API.put('/auth/me', payload);
-                        // Atualiza o usuário em memória e no localStorage
                         Object.assign(usuario, atualizado);
                         API.setUser(atualizado);
-                        // Atualiza header
                         document.getElementById('user-avatar').textContent = iniciais(usuario.nome);
                         document.getElementById('user-name').textContent = usuario.nome.split(' ')[0];
                         toast('Perfil atualizado!', 'success');
@@ -622,7 +598,8 @@
                 });
             }
 
-            bd.addEventListener('click', (e) => {
+            document.body.appendChild(bd);
+            bd.addEventListener('click', e => {
                 if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
             });
         }
@@ -634,36 +611,36 @@
             const bd = document.createElement('div');
             bd.className = 'cb-modal-backdrop';
             bd.innerHTML = `
-                <div class="cb-modal" style="max-height:85vh;display:flex;flex-direction:column;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
-                        <h3 style="margin:0;font-size:1.05rem;">💬 ${escapeHTML(tituloEvento)}</h3>
-                        <button data-close style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:var(--ink-500);">×</button>
+                <div class="cb-modal comentarios-modal">
+                    <div class="comentarios-header">
+                        <h3>💬 ${escapeHTML(tituloEvento)}</h3>
+                        <button class="comentarios-close" data-close>×</button>
                     </div>
-                    <div id="lista-comentarios" style="flex:1;overflow-y:auto;margin-bottom:1rem;">
+                    <div id="lista-comentarios" class="comentarios-lista">
                         ${Array.from({length:3}, () => `
-                            <div style="padding:0.7rem 0;border-bottom:1px solid var(--ink-100);display:flex;gap:0.6rem;align-items:flex-start;">
-                                <div class="skeleton" style="width:32px;height:32px;border-radius:50%;flex-shrink:0;"></div>
-                                <div style="flex:1;">
+                            <div class="skel-comentario">
+                                <div class="skeleton skel-avatar"></div>
+                                <div class="skel-body">
                                     <div class="skeleton skeleton-line" style="width:40%;height:10px;margin-bottom:6px;"></div>
                                     <div class="skeleton skeleton-line skeleton-line--full" style="height:10px;"></div>
                                 </div>
                             </div>
                         `).join('')}
                     </div>
-                    ${API.isAuthenticated() ? `
-                    <form id="form-comentario" style="display:flex;gap:0.5rem;">
-                        <input id="input-comentario" placeholder="Escreva um comentário..." maxlength="500"
-                            style="flex:1;padding:0.55rem 0.8rem;border:1.5px solid var(--ink-200);border-radius:99px;font-size:0.9rem;">
-                        <button type="submit" class="btn-cb btn-cb--primary btn-cb--sm" style="border-radius:99px;padding:0.55rem 1rem;">
-                            <i class="bi bi-send"></i>
-                        </button>
-                    </form>` : `<p style="text-align:center;color:var(--ink-400);font-size:0.85rem;">
-                        <a href="/login">Entre</a> para comentar
-                    </p>`}
+                    ${API.isAuthenticated()
+                        ? `<form id="form-comentario" class="comentarios-form">
+                               <input id="input-comentario" class="comentarios-input" placeholder="Escreva um comentário..." maxlength="500">
+                               <button type="submit" class="btn-cb btn-cb--primary btn-cb--sm">
+                                   <i class="bi bi-send"></i>
+                               </button>
+                           </form>`
+                        : `<p class="comentarios-login"><a href="/login">Entre</a> para comentar</p>`}
                 </div>
             `;
             document.body.appendChild(bd);
-            bd.addEventListener('click', e => { if (e.target === bd || e.target.closest('[data-close]')) bd.remove(); });
+            bd.addEventListener('click', e => {
+                if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
+            });
 
             const lista = bd.querySelector('#lista-comentarios');
 
@@ -671,30 +648,31 @@
                 try {
                     const comentarios = await API.get(`/eventos/${eventoId}/comentarios`);
                     if (comentarios.length === 0) {
-                        lista.innerHTML = '<p style="text-align:center;color:var(--ink-400);padding:1.5rem 0;">Nenhum comentário ainda. Seja o primeiro!</p>';
+                        lista.innerHTML = '<p class="comentarios-empty">Nenhum comentário ainda. Seja o primeiro!</p>';
                         return;
                     }
                     lista.innerHTML = comentarios.map(c => `
-                        <div style="padding:0.7rem 0;border-bottom:1px solid var(--ink-100);display:flex;gap:0.6rem;align-items:flex-start;">
-                            <div style="width:32px;height:32px;border-radius:50%;background:var(--brand-500);color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;flex-shrink:0;">
+                        <div class="comentario-item">
+                            <div class="comentario-avatar">
                                 ${escapeHTML(c.usuario_nome.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase())}
                             </div>
-                            <div style="flex:1;min-width:0;">
-                                <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
-                                    <strong style="font-size:0.85rem;">${escapeHTML(c.usuario_nome)}</strong>
-                                    <span style="font-size:0.75rem;color:var(--ink-400);white-space:nowrap;">
+                            <div class="comentario-body">
+                                <div class="comentario-meta">
+                                    <strong class="comentario-autor">${escapeHTML(c.usuario_nome)}</strong>
+                                    <span class="comentario-data">
                                         ${new Date(c.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
                                     </span>
                                 </div>
-                                <p style="margin:0.2rem 0 0;font-size:0.9rem;color:var(--ink-700);word-break:break-word;">${escapeHTML(c.texto)}</p>
+                                <p class="comentario-texto">${escapeHTML(c.texto)}</p>
                             </div>
-                            ${c.pode_deletar ? `<button onclick="deletarComentario(${c.id}, this)" style="background:none;border:none;color:var(--ink-300);cursor:pointer;padding:0.2rem;flex-shrink:0;" title="Remover">
-                                <i class="bi bi-trash3" style="font-size:0.8rem;"></i>
-                            </button>` : ''}
+                            ${c.pode_deletar ? `
+                                <button class="comentario-del" onclick="deletarComentario(${c.id}, this)" title="Remover">
+                                    <i class="bi bi-trash3"></i>
+                                </button>` : ''}
                         </div>
                     `).join('');
                 } catch {
-                    lista.innerHTML = '<p style="text-align:center;color:var(--ink-400);">Erro ao carregar comentários.</p>';
+                    lista.innerHTML = '<p class="comentarios-empty">Erro ao carregar comentários.</p>';
                 }
             }
 
@@ -722,14 +700,14 @@
         window.deletarComentario = async function(id, btn) {
             try {
                 await API.delete(`/comentarios/${id}`);
-                btn.closest('div[style]').remove();
+                btn.closest('.comentario-item').remove();
             } catch (err) {
                 toast(err.message || 'Erro ao remover', 'error');
             }
         };
 
         // ------------------------------------------------------------
-        // Compartilhar evento
+        // Compartilhar
         // ------------------------------------------------------------
         window.compartilharEvento = function(id, titulo, local, data) {
             const texto = `${titulo}\n📍 ${local}\n📅 ${data}`;
@@ -746,8 +724,7 @@
         // ------------------------------------------------------------
         // Boot
         // ------------------------------------------------------------
-        window.carregarMais = carregarMais; // expõe para o onclick inline
-
+        window.carregarMais = carregarMais;
         carregarFeed();
     </script>
 </body>
