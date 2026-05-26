@@ -22,10 +22,12 @@ Credenciais padrão do admin:
 """
 
 import os
+import logging
+import json
 from pathlib import Path
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -33,6 +35,37 @@ from sqlmodel import Session
 
 from database import engine, criar_banco
 from auth import garantir_admin_padrao
+
+# ── Logging estruturado ────────────────────────────────────────────────────────
+class _JsonFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info:
+            payload["exc"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+_handler = logging.StreamHandler()
+_handler.setFormatter(_JsonFormatter())
+logging.basicConfig(handlers=[_handler], level=logging.INFO, force=True)
+logger = logging.getLogger("conecta_bairro")
+
+# ── Sentry (opcional — só ativa se SENTRY_DSN estiver configurado) ─────────────
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=0.2,
+        integrations=[FastApiIntegration(), SqlalchemyIntegration()],
+        environment=os.getenv("RAILWAY_ENVIRONMENT", "development"),
+    )
+    logger.info("Sentry inicializado")
 
 from routers.auth_router import router as auth_router
 from routers.eventos_router import router as eventos_router
@@ -50,13 +83,7 @@ async def lifespan(app: FastAPI):
     criar_banco()
     with Session(engine) as session:
         garantir_admin_padrao(session)
-    print("=" * 60)
-    print(" Conecta Bairro - API iniciada")
-    print(" Banco de dados: pronto")
-    print(" Admin padrão:  admin@conectabairro.com / admin123")
-    print(" Acesse:        http://localhost:8000")
-    print(" API docs:      http://localhost:8000/docs")
-    print("=" * 60)
+    logger.info("Conecta Bairro API iniciada — banco pronto")
     yield
 
 
@@ -77,6 +104,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def _log_requests(request: Request, call_next):
+    response = await call_next(request)
+    if not request.url.path.startswith(("/static", "/uploads", "/sw.js", "/manifest")):
+        logger.info(
+            "%s %s %s",
+            request.method,
+            request.url.path,
+            response.status_code,
+        )
+    return response
+
 
 app.include_router(auth_router)
 app.include_router(eventos_router)

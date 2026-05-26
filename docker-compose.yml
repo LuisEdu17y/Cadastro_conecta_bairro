@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: conecta
+      POSTGRES_PASSWORD: conecta
+      POSTGRES_DB: conectabairro
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U conecta -d conectabairro"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://conecta:conecta@db:5432/conectabairro
+      JWT_SECRET: dev-secret-change-in-production
+      SECRET_KEY: dev-secret-change-in-production
+      PORT: "8000"
+      # Opcional — deixe em branco para usar fallbacks locais
+      # BREVO_API_KEY: ""
+      # CLOUDINARY_CLOUD_NAME: ""
+      # CLOUDINARY_API_KEY: ""
+      # CLOUDINARY_API_SECRET: ""
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - uploads_data:/app/backend/uploads
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  postgres_data:
+  uploads_data:

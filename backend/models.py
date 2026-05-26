@@ -86,6 +86,8 @@ class EventoBase(SQLModel):
     data_inicio: Optional[datetime] = None  # datetime para filtragem
     vagas: int = 30                       # 0 = ilimitado
     imagem_url: Optional[str] = None      # caminho da imagem do evento
+    latitude: Optional[float] = None     # coordenadas geográficas
+    longitude: Optional[float] = None
 
 
 class Evento(EventoBase, table=True):
@@ -114,6 +116,8 @@ class EventoUpdate(SQLModel):
     data_inicio: Optional[datetime] = None
     vagas: Optional[int] = None
     imagem_url: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 class EventoPublic(EventoBase):
@@ -125,6 +129,7 @@ class EventoPublic(EventoBase):
     total_espera: int = 0
     nota_media: Optional[float] = None
     total_avaliacoes: int = 0
+    distancia_km: Optional[float] = None  # preenchido quando lat/lon informados
 
 
 class EventosPaginados(SQLModel):

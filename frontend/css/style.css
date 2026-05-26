@@ -1499,3 +1499,35 @@ body.admin-body { background: var(--ink-50); }
     color: var(--ink-400);
     white-space: nowrap;
 }
+
+/* ---------- Geolocalização ---------- */
+.geo-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.geo-btn { gap: 0.4rem; }
+.geo-btn.is-active {
+    background: var(--brand-600);
+    color: #fff;
+    border-color: var(--brand-600);
+}
+.geo-status {
+    font-size: 0.78rem;
+    color: var(--ink-400);
+}
+.distancia-row { color: var(--brand-700); font-weight: 500; }
+.badge-distancia {
+    display: inline-block;
+    background: var(--brand-50);
+    color: var(--brand-700);
+    border: 1px solid var(--brand-200);
+    border-radius: 999px;
+    padding: 0 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.6;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin-icon { display: inline-block; animation: spin 0.8s linear infinite; }

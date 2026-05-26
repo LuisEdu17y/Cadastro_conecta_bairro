@@ -30,6 +30,7 @@ O **Conecta Bairro** é uma aplicação web full-stack para comunidades locais. 
 - Cadastro e login com autenticação **JWT**
 - **Foto de perfil** com upload e preview ao vivo
 - Feed paginado com busca por texto, filtros por categoria, bairro, data e ordenação
+- **Filtro "Próximos de mim"** via Geolocation API — mostra eventos em até 20 km com badge de distância
 - **Lista de espera** automática quando vagas esgotam — promoção automática ao cancelar
 - Inscrição/cancelamento em eventos com controle de vagas e barra de progresso
 - **Avaliações** com nota de 1–5 estrelas e comentário por evento
@@ -58,7 +59,11 @@ O **Conecta Bairro** é uma aplicação web full-stack para comunidades locais. 
 - Imagens persistentes via **Cloudinary** (fallback para filesystem local)
 - E-mails transacionais via **Brevo API** (fallback SMTP)
 - **PWA** com service worker, cache offline e manifest
-- Deploy containerizado com **Dockerfile**
+- Deploy containerizado com **Dockerfile** · **docker-compose** para desenvolvimento local
+- **GitHub Actions** CI: roda pytest em todo push/PR
+- **Sentry** para monitoramento de erros (ativa automaticamente via `SENTRY_DSN`)
+- **Logs estruturados** em JSON no stdout
+- **Geolocalização**: coordenadas por evento, filtro por proximidade com haversine
 - CORS configurável por variável de ambiente
 
 ---
@@ -104,7 +109,11 @@ conecta-bairro/
 │   ├── manifest.json              # PWA manifest
 │   └── sw.js                      # Service worker (cache offline)
 ├── Dockerfile                     # Build de produção
+├── docker-compose.yml             # Ambiente local (PostgreSQL + app)
 ├── railway.toml                   # Configuração Railway
+├── .github/
+│   └── workflows/
+│       └── ci.yml                 # GitHub Actions — testes automáticos
 └── .gitignore
 ```
 
@@ -161,6 +170,7 @@ Configure no painel do Railway (ou em um arquivo `.env` local — nunca commite 
 | `CLOUDINARY_API_KEY` | Chave Cloudinary | — |
 | `CLOUDINARY_API_SECRET` | Segredo Cloudinary | — |
 | `ALLOWED_ORIGINS` | Origins CORS (separadas por vírgula) | — |
+| `SENTRY_DSN` | DSN do Sentry para monitoramento de erros | — |
 
 > Sem e-mail configurado, os envios são apenas logados no terminal.
 > Sem Cloudinary, imagens são salvas no filesystem local.

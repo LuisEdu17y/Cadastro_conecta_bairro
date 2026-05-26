@@ -74,6 +74,8 @@ def _migrar_colunas() -> None:
             ("bairro", "TEXT"),
             ("data_inicio", "DATETIME"),
             ("imagem_url", "TEXT"),
+            ("latitude", "REAL"),
+            ("longitude", "REAL"),
         ],
         "usuario": [
             ("foto_url", "TEXT"),

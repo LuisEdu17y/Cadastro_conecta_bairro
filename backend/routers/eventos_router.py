@@ -20,6 +20,7 @@ Restritas a admin:
 """
 
 import uuid
+import math
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -51,6 +52,16 @@ from email_service import (
 
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
 
+
+def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distância em km entre dois pontos geográficos (fórmula de Haversine)."""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
 # Pasta onde as imagens dos eventos são salvas
 UPLOADS_DIR = Path(__file__).resolve().parent.parent / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
@@ -64,7 +75,10 @@ TAMANHO_MAX_MB = 5
 # ──────────────────────────────────────────────
 
 def _para_publico(
-    session: Session, evento: Evento, usuario: Optional[Usuario]
+    session: Session,
+    evento: Evento,
+    usuario: Optional[Usuario],
+    distancia_km: Optional[float] = None,
 ) -> EventoPublic:
     total = session.exec(
         select(func.count(Inscricao.id)).where(Inscricao.evento_id == evento.id)
@@ -112,6 +126,7 @@ def _para_publico(
         total_espera=total_espera or 0,
         nota_media=round(avg_nota, 1) if avg_nota else None,
         total_avaliacoes=total_aval or 0,
+        distancia_km=round(distancia_km, 1) if distancia_km is not None else None,
     )
 
 
@@ -140,15 +155,18 @@ def listar_eventos(
     bairro: Optional[str] = None,
     local: Optional[str] = None,
     q: Optional[str] = Query(default=None, description="Busca por título, descrição ou local"),
-    ordem: Optional[str] = Query(default="recentes", description="recentes | antigos | inscritos | vagas"),
+    ordem: Optional[str] = Query(default="recentes", description="recentes | antigos | inscritos | vagas | distancia"),
     data_inicio: Optional[datetime] = Query(default=None, description="Filtrar a partir desta data (ISO 8601)"),
     data_fim: Optional[datetime] = Query(default=None, description="Filtrar até esta data (ISO 8601)"),
+    lat: Optional[float] = Query(default=None, description="Latitude do usuário para filtro por proximidade"),
+    lon: Optional[float] = Query(default=None, description="Longitude do usuário para filtro por proximidade"),
+    raio_km: Optional[float] = Query(default=10.0, description="Raio de busca em km (padrão 10)"),
     limite: int = Query(default=LIMITE_PADRAO, ge=1, le=LIMITE_MAXIMO, description="Eventos por página"),
     offset: int = Query(default=0, ge=0, description="Quantos eventos pular"),
     session: Session = Depends(get_session),
     usuario: Optional[Usuario] = Depends(usuario_atual_opcional),
 ):
-    """Lista eventos paginados com filtros, busca e ordenação."""
+    """Lista eventos paginados com filtros, busca, ordenação e filtro por proximidade."""
     query_base = select(Evento)
 
     if modalidade and modalidade.lower() != "todos":
@@ -169,7 +187,30 @@ def listar_eventos(
     if data_fim:
         query_base = query_base.where(Evento.data_inicio <= data_fim)
 
-    # Total para paginação
+    # Filtro por proximidade — feito em Python (compatível com SQLite e PostgreSQL)
+    usando_geo = lat is not None and lon is not None
+    if usando_geo:
+        todos = session.exec(query_base.where(
+            Evento.latitude.is_not(None),
+            Evento.longitude.is_not(None),
+        )).all()
+        eventos_com_dist = [
+            (ev, _haversine(lat, lon, ev.latitude, ev.longitude))
+            for ev in todos
+            if _haversine(lat, lon, ev.latitude, ev.longitude) <= (raio_km or 10.0)
+        ]
+        eventos_com_dist.sort(key=lambda x: x[1])  # ordena por distância
+        total = len(eventos_com_dist)
+        pagina = eventos_com_dist[offset: offset + limite]
+        return EventosPaginados(
+            total=total,
+            limite=limite,
+            offset=offset,
+            tem_mais=(offset + limite) < total,
+            eventos=[_para_publico(session, ev, usuario, dist) for ev, dist in pagina],
+        )
+
+    # Total para paginação (sem geo)
     total = session.exec(
         select(func.count()).select_from(query_base.subquery())
     ).one()

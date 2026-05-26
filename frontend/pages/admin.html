@@ -391,6 +391,21 @@
                             <label>Local</label>
                             <input id="ev-local" value="${evento ? escapeHTML(evento.local) : 'Quadra Poliesportiva'}">
                         </div>
+                        <div class="field-grid">
+                            <div class="field">
+                                <label>Latitude (geolocalização)</label>
+                                <input id="ev-lat" type="number" step="any" placeholder="Ex: -15.7801"
+                                    value="${evento?.latitude ?? ''}">
+                            </div>
+                            <div class="field">
+                                <label>Longitude</label>
+                                <input id="ev-lon" type="number" step="any" placeholder="Ex: -47.9292"
+                                    value="${evento?.longitude ?? ''}">
+                            </div>
+                        </div>
+                        <small class="text-muted-soft" style="display:block;margin-top:-0.5rem;margin-bottom:0.75rem">
+                            <i class="bi bi-info-circle"></i> Opcional — permite filtro "Próximos de mim" para moradores
+                        </small>
                         ${editando ? `
                         <div class="field">
                             <label>Imagem do evento</label>
@@ -415,6 +430,8 @@
             document.getElementById('form-evento').addEventListener('submit', async e => {
                 e.preventDefault();
                 const dataInicioVal = document.getElementById('ev-data-inicio')?.value;
+                const latVal = parseFloat(document.getElementById('ev-lat')?.value);
+                const lonVal = parseFloat(document.getElementById('ev-lon')?.value);
                 const payload = {
                     titulo:      document.getElementById('ev-titulo').value.trim(),
                     descricao:   document.getElementById('ev-descricao').value.trim() || null,
@@ -425,6 +442,8 @@
                     local:       document.getElementById('ev-local').value.trim() || 'Quadra Poliesportiva',
                     bairro:      document.getElementById('ev-bairro')?.value.trim() || null,
                     data_inicio: dataInicioVal ? new Date(dataInicioVal).toISOString() : null,
+                    latitude:    isNaN(latVal) ? null : latVal,
+                    longitude:   isNaN(lonVal) ? null : lonVal,
                 };
                 const btn = document.getElementById('btn-salvar-ev');
                 btn.disabled = true;

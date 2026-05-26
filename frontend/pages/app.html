@@ -79,6 +79,14 @@
             </select>
         </div>
 
+        <!-- Botão geolocalização -->
+        <div class="geo-bar">
+            <button id="btn-geo" class="btn-cb btn-cb--soft btn-cb--sm geo-btn" onclick="toggleGeo()">
+                <i class="bi bi-geo-alt"></i> Próximos de mim
+            </button>
+            <span id="geo-status" class="geo-status"></span>
+        </div>
+
         <!-- Filtros avançados (expansível) -->
         <div class="filtros-wrap">
             <button id="btn-filtros-avancados" class="btn-cb btn-cb--soft btn-cb--sm">
@@ -172,6 +180,7 @@
         let filtrosAvancados = {};
         let offsetAtual = 0;
         const LIMITE = 12;
+        let geoCoords = null; // { lat, lon } quando ativo
 
         // ------------------------------------------------------------
         // Filtros avançados — toggle
@@ -227,9 +236,58 @@
             if (buscaTexto) p.set('q', buscaTexto);
             if (ordem !== 'recentes') p.set('ordem', ordem);
             Object.entries(filtrosAvancados).forEach(([k, v]) => p.set(k, v));
+            if (geoCoords) {
+                p.set('lat', geoCoords.lat);
+                p.set('lon', geoCoords.lon);
+                p.set('raio_km', '20');
+            }
             p.set('limite', LIMITE);
             p.set('offset', offset);
             return p.toString();
+        }
+
+        // ------------------------------------------------------------
+        // Geolocalização
+        // ------------------------------------------------------------
+        async function toggleGeo() {
+            const btn = document.getElementById('btn-geo');
+            const status = document.getElementById('geo-status');
+            if (geoCoords) {
+                geoCoords = null;
+                btn.classList.remove('is-active');
+                btn.innerHTML = '<i class="bi bi-geo-alt"></i> Próximos de mim';
+                status.textContent = '';
+                carregarFeed();
+                return;
+            }
+            if (!navigator.geolocation) {
+                toast('Seu navegador não suporta geolocalização', 'error');
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-arrow-repeat spin-icon"></i> Localizando...';
+            status.textContent = '';
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    geoCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                    btn.disabled = false;
+                    btn.classList.add('is-active');
+                    btn.innerHTML = '<i class="bi bi-geo-alt-fill"></i> Próximos de mim';
+                    status.textContent = 'Mostrando eventos em até 20 km';
+                    carregarFeed();
+                },
+                (err) => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-geo-alt"></i> Próximos de mim';
+                    const msgs = {
+                        1: 'Permissão de localização negada',
+                        2: 'Localização indisponível',
+                        3: 'Tempo esgotado',
+                    };
+                    toast(msgs[err.code] || 'Erro ao obter localização', 'error');
+                },
+                { timeout: 10000, maximumAge: 60000 }
+            );
         }
 
         // ------------------------------------------------------------
@@ -410,6 +468,10 @@
                 ? `<div class="row"><i class="bi bi-map"></i> ${escapeHTML(ev.bairro)}</div>`
                 : '';
 
+            const distanciaInfo = ev.distancia_km != null
+                ? `<div class="row distancia-row"><i class="bi bi-compass"></i> <span class="badge-distancia">${ev.distancia_km} km de você</span></div>`
+                : '';
+
             const tituloEsc = escapeHTML(ev.titulo).replace(/'/g, "\\'");
             const localEsc  = escapeHTML(ev.local).replace(/'/g, "\\'");
             const dataEsc   = escapeHTML(ev.data).replace(/'/g, "\\'");
@@ -424,6 +486,7 @@
                         <div class="row"><i class="bi bi-calendar-event"></i> ${escapeHTML(ev.data)}</div>
                         <div class="row"><i class="bi bi-geo-alt"></i> ${escapeHTML(ev.local)}</div>
                         ${bairroInfo}
+                        ${distanciaInfo}
                     </div>
                     <div class="footer-row">
                         <div>
