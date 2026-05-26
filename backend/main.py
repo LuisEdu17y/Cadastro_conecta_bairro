@@ -38,6 +38,7 @@ from routers.auth_router import router as auth_router
 from routers.eventos_router import router as eventos_router
 from routers.admin_router import router as admin_router
 from routers.comentarios_router import router as comentarios_router
+from routers.avaliacoes_router import router as avaliacoes_router
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
@@ -81,6 +82,7 @@ app.include_router(auth_router)
 app.include_router(eventos_router)
 app.include_router(admin_router)
 app.include_router(comentarios_router)
+app.include_router(avaliacoes_router)
 
 # Servir imagens de eventos enviadas por upload
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
@@ -115,6 +117,14 @@ if FRONTEND_DIR.exists():
     @app.get("/redefinir-senha", include_in_schema=False)
     def redefinir_senha_page():
         return _pagina("redefinir-senha.html")
+
+    @app.get("/manifest.json", include_in_schema=False)
+    def manifest():
+        return FileResponse(str(FRONTEND_DIR / "manifest.json"), media_type="application/manifest+json")
+
+    @app.get("/sw.js", include_in_schema=False)
+    def service_worker():
+        return FileResponse(str(FRONTEND_DIR / "sw.js"), media_type="application/javascript")
 
 
 @app.get("/api", tags=["Status"])

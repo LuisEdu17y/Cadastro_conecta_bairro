@@ -115,6 +115,10 @@ class EventoPublic(EventoBase):
     criado_em: datetime
     total_inscritos: int = 0
     inscrito: bool = False
+    posicao_espera: int = 0   # 0 = não está na fila; N = posição N
+    total_espera: int = 0
+    nota_media: Optional[float] = None
+    total_avaliacoes: int = 0
 
 
 class EventosPaginados(SQLModel):
@@ -177,6 +181,44 @@ class ComentarioPublic(SQLModel):
     texto: str
     criado_em: datetime
     usuario_id: int
+    usuario_nome: str
+    pode_deletar: bool = False
+
+
+# ============================================================
+# LISTA DE ESPERA
+# ============================================================
+
+class Espera(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    usuario_id: int = Field(foreign_key="usuario.id")
+    evento_id: int = Field(foreign_key="evento.id")
+    criado_em: datetime = Field(default_factory=datetime.utcnow)
+
+
+# ============================================================
+# AVALIAÇÃO
+# ============================================================
+
+class Avaliacao(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    nota: int                             # 1–5
+    comentario: Optional[str] = Field(default=None, max_length=300)
+    evento_id: int = Field(foreign_key="evento.id")
+    usuario_id: int = Field(foreign_key="usuario.id")
+    criado_em: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AvaliacaoCreate(SQLModel):
+    nota: int
+    comentario: Optional[str] = None
+
+
+class AvaliacaoPublic(SQLModel):
+    id: int
+    nota: int
+    comentario: Optional[str] = None
+    criado_em: datetime
     usuario_nome: str
     pode_deletar: bool = False
 

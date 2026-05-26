@@ -1357,3 +1357,90 @@ body.admin-body { background: var(--ink-50); }
 .status-pill--ativo   { background: var(--brand-50); color: var(--brand-700); }
 .status-pill--inativo { background: #fee2e2; color: #b91c1c; }
 .status-pill--admin   { background: #fef3c7; color: #92400e; }
+
+/* ---------- Lista de espera ---------- */
+.btn-inscricao.is-espera {
+    color: var(--amber-500);
+    border-color: var(--amber-500);
+}
+
+/* ---------- Avaliações / estrelas ---------- */
+.avaliacoes-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--ink-100);
+}
+.avaliacoes-input-row {
+    display: flex;
+    gap: 6px;
+}
+.estrelas-row {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+.estrela {
+    background: none;
+    border: none;
+    font-size: 1.6rem;
+    color: var(--ink-200);
+    cursor: pointer;
+    padding: 0 2px;
+    transition: color .15s, transform .1s;
+    line-height: 1;
+}
+.estrela:hover,
+.estrela.ativa {
+    color: var(--amber-500);
+    transform: scale(1.15);
+}
+.estrelas-display {
+    color: var(--amber-500);
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    margin-left: 4px;
+}
+.avaliacao-item .comentario-meta {
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+/* ---------- Atividade recente (admin) ---------- */
+.atividade-lista {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.atividade-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--ink-100);
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+}
+.atividade-item:last-child { border-bottom: none; }
+.atividade-ic {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.75rem;
+}
+.atividade-ic--inscricao { background: #fee2e2; color: #be123c; }
+.atividade-ic--avaliacao { background: #fef3c7; color: #92400e; }
+.atividade-data {
+    margin-left: auto;
+    font-size: 0.75rem;
+    color: var(--ink-400);
+    white-space: nowrap;
+}

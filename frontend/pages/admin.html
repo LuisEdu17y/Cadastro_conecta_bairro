@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0d9488">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/manifest.json">
     <title>Painel Admin — Conecta Bairro</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -76,6 +80,25 @@
                         <div class="ic" style="background:#e0e7ff;color:#4338ca;"><i class="bi bi-shield-lock-fill"></i></div>
                         <div class="lbl">Administradores</div>
                         <div class="val" id="kpi-admins">—</div>
+                    </div>
+                    <div class="kpi-card" style="--accent-color: #fef3c7;">
+                        <div class="ic" style="background:#fef3c7;color:#92400e;"><i class="bi bi-hourglass-split"></i></div>
+                        <div class="lbl">Na lista de espera</div>
+                        <div class="val" id="kpi-espera">—</div>
+                    </div>
+                    <div class="kpi-card" style="--accent-color: #d1fae5;">
+                        <div class="ic" style="background:#d1fae5;color:#065f46;"><i class="bi bi-star-fill"></i></div>
+                        <div class="lbl">Avaliações</div>
+                        <div class="val" id="kpi-avaliacoes">—</div>
+                    </div>
+                </div>
+
+                <div class="cb-card mb-3">
+                    <div class="section-title">
+                        <h3>Atividade recente</h3>
+                    </div>
+                    <div id="atividade-recente">
+                        <div class="cb-spinner"></div>
                     </div>
                 </div>
 
@@ -189,6 +212,34 @@
                 document.getElementById('kpi-eventos').textContent    = d.total_eventos;
                 document.getElementById('kpi-inscricoes').textContent = d.total_inscricoes;
                 document.getElementById('kpi-admins').textContent     = d.total_admins;
+                document.getElementById('kpi-espera').textContent     = d.total_espera ?? '—';
+                document.getElementById('kpi-avaliacoes').textContent = d.total_avaliacoes ?? '—';
+
+                // Atividade recente
+                try {
+                    const atividade = await API.get('/admin/atividade');
+                    const ar = document.getElementById('atividade-recente');
+                    if (!atividade.length) {
+                        ar.innerHTML = '<p class="text-muted-soft">Nenhuma atividade registrada ainda.</p>';
+                    } else {
+                        ar.innerHTML = `<ul class="atividade-lista">${atividade.map(a => {
+                            const data = new Date(a.criado_em).toLocaleString('pt-BR', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+                            if (a.tipo === 'inscricao') {
+                                return `<li class="atividade-item">
+                                    <span class="atividade-ic atividade-ic--inscricao"><i class="bi bi-bookmark-heart-fill"></i></span>
+                                    <span><strong>${escapeHTML(a.usuario_nome)}</strong> se inscreveu em <strong>${escapeHTML(a.evento_titulo)}</strong></span>
+                                    <span class="atividade-data">${data}</span>
+                                </li>`;
+                            }
+                            const estrelas = '★'.repeat(a.nota) + '☆'.repeat(5 - a.nota);
+                            return `<li class="atividade-item">
+                                <span class="atividade-ic atividade-ic--avaliacao"><i class="bi bi-star-fill"></i></span>
+                                <span><strong>${escapeHTML(a.usuario_nome)}</strong> avaliou <strong>${escapeHTML(a.evento_titulo)}</strong> com <span class="estrelas-display">${estrelas}</span></span>
+                                <span class="atividade-data">${data}</span>
+                            </li>`;
+                        }).join('')}</ul>`;
+                    }
+                } catch { /* atividade não crítica */ }
 
                 const max = Math.max(1, ...d.eventos_por_modalidade.map(m => m.quantidade));
                 const gm  = document.getElementById('grafico-modalidades');

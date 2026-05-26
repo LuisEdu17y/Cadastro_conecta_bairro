@@ -213,6 +213,21 @@ def _html_evento_cancelado(nome: str, titulo: str) -> str:
     """)
 
 
+def _html_vaga_disponivel(nome: str, titulo: str, local: str, data: str) -> str:
+    return _base_template("Vaga Disponível!", f"""
+    <p>Olá, <strong>{nome}</strong>! 🎉</p>
+    <p>Uma vaga abriu no evento <strong>{titulo}</strong> e você foi inscrito automaticamente por estar na lista de espera.</p>
+    <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+      <tr><td style="padding:8px;color:#555;width:80px;">📍 Local</td>
+          <td style="padding:8px;"><strong>{local}</strong></td></tr>
+      <tr style="background:#f9f9f9;">
+          <td style="padding:8px;color:#555;">📅 Data</td>
+          <td style="padding:8px;"><strong>{data}</strong></td></tr>
+    </table>
+    <p>Sua presença está confirmada. Nos vemos lá! 🌿</p>
+    """)
+
+
 def _html_redefinir_senha(nome: str, link: str) -> str:
     return _base_template("Redefinição de Senha", f"""
     <p>Olá, <strong>{nome}</strong>!</p>
@@ -277,4 +292,13 @@ async def email_redefinir_senha(para, nome, link):
         _enviar_sync_seguro, para,
         "Redefinição de senha — Conecta Bairro",
         _html_redefinir_senha(nome, link),
+    )
+
+
+async def email_vaga_disponivel(para, nome, titulo, local, data):
+    import asyncio
+    await asyncio.to_thread(
+        _enviar_sync_seguro, para,
+        f"Vaga disponível: {titulo}",
+        _html_vaga_disponivel(nome, titulo, local, data),
     )

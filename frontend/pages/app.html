@@ -3,6 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0d9488">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
     <title>Eventos — Conecta Bairro</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -372,11 +377,17 @@
                 ? `<button class="btn-cb btn-cb--sm btn-inscricao is-inscrito" onclick="cancelarInscricao(${ev.id})">
                        <i class="bi bi-check2-circle"></i> Inscrito
                    </button>`
-                : (cheio
-                    ? `<button class="btn-cb btn-cb--sm btn-cb--soft" disabled>Esgotado</button>`
-                    : `<button class="btn-cb btn-cb--sm btn-cb--primary btn-inscricao" onclick="inscrever(${ev.id})">
-                           Participar
-                       </button>`);
+                : ev.posicao_espera > 0
+                ? `<button class="btn-cb btn-cb--sm btn-cb--soft is-espera" onclick="sairDaEspera(${ev.id})" title="Clique para sair da fila">
+                       <i class="bi bi-hourglass-split"></i> Fila #${ev.posicao_espera}
+                   </button>`
+                : cheio
+                ? `<button class="btn-cb btn-cb--sm btn-cb--soft" onclick="entrarNaEspera(${ev.id})">
+                       <i class="bi bi-list-check"></i> Entrar na fila
+                   </button>`
+                : `<button class="btn-cb btn-cb--sm btn-cb--primary btn-inscricao" onclick="inscrever(${ev.id})">
+                       Participar
+                   </button>`;
 
             const descricao = ev.descricao
                 ? `<p class="event-card-desc">${escapeHTML(ev.descricao)}</p>`
@@ -417,6 +428,11 @@
                                 onclick="abrirComentarios(${ev.id}, '${tituloEsc}')">
                                 <i class="bi bi-chat"></i>
                             </button>
+                            <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Avaliar"
+                                onclick="abrirAvaliacoes(${ev.id}, '${tituloEsc}')">
+                                <i class="bi bi-star${ev.nota_media ? '-fill' : ''}"></i>
+                                ${ev.nota_media ? `<span style="font-size:.7rem">${ev.nota_media}</span>` : ''}
+                            </button>
                             <button class="btn-cb btn-cb--sm btn-cb--ghost" title="Compartilhar"
                                 onclick="compartilharEvento(${ev.id}, '${tituloEsc}', '${localEsc}', '${dataEsc}')">
                                 <i class="bi bi-share"></i>
@@ -441,11 +457,39 @@
         // ------------------------------------------------------------
         window.inscrever = async function(id) {
             try {
-                await API.post(`/eventos/${id}/inscrever`);
-                toast('Presença confirmada!', 'success');
+                const res = await API.post(`/eventos/${id}/inscrever`);
+                toast(res.lista_espera ? res.mensagem : 'Presença confirmada!', res.lista_espera ? 'info' : 'success');
                 await carregarFeed();
             } catch (err) {
                 toast(err.message || 'Erro ao inscrever', 'error');
+            }
+        };
+
+        window.entrarNaEspera = async function(id) {
+            try {
+                const res = await API.post(`/eventos/${id}/inscrever`);
+                toast(res.mensagem, 'info');
+                await carregarFeed();
+            } catch (err) {
+                toast(err.message || 'Erro', 'error');
+            }
+        };
+
+        window.sairDaEspera = async function(id) {
+            const ok = await confirmar({
+                titulo: 'Sair da lista de espera?',
+                mensagem: 'Você perderá sua posição na fila.',
+                textoOk: 'Sim, sair',
+                textoCancelar: 'Manter',
+                perigoso: true,
+            });
+            if (!ok) return;
+            try {
+                await API.delete(`/eventos/${id}/espera`);
+                toast('Removido da lista de espera', 'info');
+                await carregarFeed();
+            } catch (err) {
+                toast(err.message || 'Erro', 'error');
             }
         };
 
@@ -701,6 +745,138 @@
             try {
                 await API.delete(`/comentarios/${id}`);
                 btn.closest('.comentario-item').remove();
+            } catch (err) {
+                toast(err.message || 'Erro ao remover', 'error');
+            }
+        };
+
+        // ------------------------------------------------------------
+        // Avaliações
+        // ------------------------------------------------------------
+        window.abrirAvaliacoes = async function(eventoId, tituloEvento) {
+            const bd = document.createElement('div');
+            bd.className = 'cb-modal-backdrop';
+            bd.innerHTML = `
+                <div class="cb-modal comentarios-modal">
+                    <div class="comentarios-header">
+                        <h3>⭐ ${escapeHTML(tituloEvento)}</h3>
+                        <button class="comentarios-close" data-close>×</button>
+                    </div>
+                    <div id="lista-avaliacoes" class="comentarios-lista">
+                        ${Array.from({length:2}, () => `
+                            <div class="skel-comentario">
+                                <div class="skeleton skel-avatar"></div>
+                                <div class="skel-body">
+                                    <div class="skeleton skeleton-line" style="width:40%;height:10px;margin-bottom:6px;"></div>
+                                    <div class="skeleton skeleton-line skeleton-line--full" style="height:10px;"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${API.isAuthenticated()
+                        ? `<form id="form-avaliacao" class="avaliacoes-form">
+                               <div class="estrelas-row" id="estrelas" data-nota="0">
+                                   ${[1,2,3,4,5].map(n => `<button type="button" class="estrela" data-nota="${n}">★</button>`).join('')}
+                               </div>
+                               <div class="avaliacoes-input-row">
+                                   <input id="input-avaliacao-comentario" class="comentarios-input" placeholder="Comentário opcional..." maxlength="300">
+                                   <button type="submit" class="btn-cb btn-cb--primary btn-cb--sm" id="btn-enviar-avaliacao">
+                                       <i class="bi bi-send"></i>
+                                   </button>
+                               </div>
+                           </form>`
+                        : `<p class="comentarios-login"><a href="/login">Entre</a> para avaliar</p>`}
+                </div>
+            `;
+            document.body.appendChild(bd);
+            bd.addEventListener('click', e => {
+                if (e.target === bd || e.target.closest('[data-close]')) bd.remove();
+            });
+
+            const lista = bd.querySelector('#lista-avaliacoes');
+
+            async function renderizarAvaliacoes() {
+                try {
+                    const avaliacoes = await API.get(`/eventos/${eventoId}/avaliacoes`);
+                    if (avaliacoes.length === 0) {
+                        lista.innerHTML = '<p class="comentarios-empty">Nenhuma avaliação ainda. Seja o primeiro!</p>';
+                        return;
+                    }
+                    lista.innerHTML = avaliacoes.map(a => `
+                        <div class="comentario-item avaliacao-item">
+                            <div class="comentario-avatar">${escapeHTML(a.usuario_nome.split(' ').map(p=>p[0]).slice(0,2).join('').toUpperCase())}</div>
+                            <div class="comentario-body">
+                                <div class="comentario-meta">
+                                    <strong class="comentario-autor">${escapeHTML(a.usuario_nome)}</strong>
+                                    <span class="estrelas-display">${'★'.repeat(a.nota)}${'☆'.repeat(5 - a.nota)}</span>
+                                    <span class="comentario-data">${new Date(a.criado_em).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span>
+                                </div>
+                                ${a.comentario ? `<p class="comentario-texto">${escapeHTML(a.comentario)}</p>` : ''}
+                            </div>
+                            ${a.pode_deletar ? `
+                                <button class="comentario-del" onclick="deletarAvaliacao(${a.id}, this)" title="Remover">
+                                    <i class="bi bi-trash3"></i>
+                                </button>` : ''}
+                        </div>
+                    `).join('');
+                } catch {
+                    lista.innerHTML = '<p class="comentarios-empty">Erro ao carregar avaliações.</p>';
+                }
+            }
+
+            await renderizarAvaliacoes();
+
+            // Estrelas interativas
+            const estrelasRow = bd.querySelector('#estrelas');
+            if (estrelasRow) {
+                let notaSelecionada = 0;
+                estrelasRow.querySelectorAll('.estrela').forEach(btn => {
+                    btn.addEventListener('mouseenter', () => {
+                        const n = +btn.dataset.nota;
+                        estrelasRow.querySelectorAll('.estrela').forEach(b =>
+                            b.classList.toggle('ativa', +b.dataset.nota <= n));
+                    });
+                    btn.addEventListener('mouseleave', () => {
+                        estrelasRow.querySelectorAll('.estrela').forEach(b =>
+                            b.classList.toggle('ativa', +b.dataset.nota <= notaSelecionada));
+                    });
+                    btn.addEventListener('click', () => {
+                        notaSelecionada = +btn.dataset.nota;
+                        estrelasRow.dataset.nota = notaSelecionada;
+                        estrelasRow.querySelectorAll('.estrela').forEach(b =>
+                            b.classList.toggle('ativa', +b.dataset.nota <= notaSelecionada));
+                    });
+                });
+
+                bd.querySelector('#form-avaliacao').addEventListener('submit', async e => {
+                    e.preventDefault();
+                    const nota = +estrelasRow.dataset.nota;
+                    if (!nota) { toast('Selecione uma nota de 1 a 5 estrelas', 'error'); return; }
+                    const comentario = bd.querySelector('#input-avaliacao-comentario').value.trim() || null;
+                    const btn = bd.querySelector('#btn-enviar-avaliacao');
+                    btn.disabled = true;
+                    try {
+                        await API.post(`/eventos/${eventoId}/avaliacoes`, { nota, comentario });
+                        bd.querySelector('#input-avaliacao-comentario').value = '';
+                        notaSelecionada = 0;
+                        estrelasRow.dataset.nota = '0';
+                        estrelasRow.querySelectorAll('.estrela').forEach(b => b.classList.remove('ativa'));
+                        toast('Avaliação enviada!', 'success');
+                        await renderizarAvaliacoes();
+                        await carregarFeed();
+                    } catch (err) {
+                        toast(err.message || 'Erro ao avaliar', 'error');
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            }
+        };
+
+        window.deletarAvaliacao = async function(id, btn) {
+            try {
+                await API.delete(`/avaliacoes/${id}`);
+                btn.closest('.avaliacao-item').remove();
             } catch (err) {
                 toast(err.message || 'Erro ao remover', 'error');
             }

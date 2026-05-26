@@ -103,4 +103,9 @@
         if (partes.length === 1) return partes[0][0].toUpperCase();
         return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
     };
+
+    // -------- SERVICE WORKER --------
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
 })();

@@ -20,7 +20,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select, func
 
 from database import get_session
-from models import Usuario, UsuarioPublic, Evento, Inscricao
+from models import Usuario, UsuarioPublic, Evento, Inscricao, Espera, Avaliacao
 from auth import apenas_admin
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -61,11 +61,16 @@ def estatisticas(
         .limit(5)
     ).all()
 
+    total_espera = session.exec(select(func.count(Espera.id))).one()
+    total_avaliacoes = session.exec(select(func.count(Avaliacao.id))).one()
+
     return {
         "total_usuarios": total_usuarios or 0,
         "total_eventos": total_eventos or 0,
         "total_inscricoes": total_inscricoes or 0,
         "total_admins": total_admins or 0,
+        "total_espera": total_espera or 0,
+        "total_avaliacoes": total_avaliacoes or 0,
         "eventos_por_modalidade": [
             {"modalidade": m, "quantidade": q} for m, q in por_modalidade
         ],
@@ -207,3 +212,52 @@ def exportar_inscritos_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="inscritos_{nome_arquivo}.csv"'},
     )
+
+
+# ---------------------- ATIVIDADE RECENTE ----------------------
+
+@router.get("/atividade")
+def atividade_recente(
+    session: Session = Depends(get_session),
+    _: Usuario = Depends(apenas_admin),
+):
+    """Últimas 20 ações de inscrição, cancelamento e avaliação."""
+    from models import Comentario, Avaliacao
+
+    inscricoes = session.exec(
+        select(Inscricao, Usuario, Evento)
+        .join(Usuario, Usuario.id == Inscricao.usuario_id)
+        .join(Evento, Evento.id == Inscricao.evento_id)
+        .order_by(Inscricao.criado_em.desc())
+        .limit(10)
+    ).all()
+
+    avaliacoes = session.exec(
+        select(Avaliacao, Usuario, Evento)
+        .join(Usuario, Usuario.id == Avaliacao.usuario_id)
+        .join(Evento, Evento.id == Avaliacao.evento_id)
+        .order_by(Avaliacao.criado_em.desc())
+        .limit(10)
+    ).all()
+
+    items = []
+
+    for ins, u, ev in inscricoes:
+        items.append({
+            "tipo": "inscricao",
+            "usuario_nome": u.nome,
+            "evento_titulo": ev.titulo,
+            "criado_em": ins.criado_em.isoformat(),
+        })
+
+    for aval, u, ev in avaliacoes:
+        items.append({
+            "tipo": "avaliacao",
+            "usuario_nome": u.nome,
+            "evento_titulo": ev.titulo,
+            "nota": aval.nota,
+            "criado_em": aval.criado_em.isoformat(),
+        })
+
+    items.sort(key=lambda x: x["criado_em"], reverse=True)
+    return items[:20]

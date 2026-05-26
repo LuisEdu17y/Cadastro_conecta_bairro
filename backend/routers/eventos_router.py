@@ -37,6 +37,8 @@ from models import (
     EventoPublic,
     EventosPaginados,
     Inscricao,
+    Espera,
+    Avaliacao,
 )
 from auth import usuario_atual, apenas_admin, usuario_atual_opcional
 from email_service import (
@@ -44,6 +46,7 @@ from email_service import (
     email_inscricao_cancelada,
     email_evento_atualizado,
     email_evento_cancelado,
+    email_vaga_disponivel,
 )
 
 router = APIRouter(prefix="/eventos", tags=["Eventos"])
@@ -67,20 +70,48 @@ def _para_publico(
         select(func.count(Inscricao.id)).where(Inscricao.evento_id == evento.id)
     ).one()
 
+    total_espera = session.exec(
+        select(func.count(Espera.id)).where(Espera.evento_id == evento.id)
+    ).one()
+
+    avg_nota = session.exec(
+        select(func.avg(Avaliacao.nota)).where(Avaliacao.evento_id == evento.id)
+    ).one()
+
+    total_aval = session.exec(
+        select(func.count(Avaliacao.id)).where(Avaliacao.evento_id == evento.id)
+    ).one()
+
     inscrito = False
+    posicao_espera = 0
+
     if usuario:
-        ja_inscrito = session.exec(
+        inscrito = session.exec(
             select(Inscricao).where(
                 Inscricao.evento_id == evento.id,
                 Inscricao.usuario_id == usuario.id,
             )
-        ).first()
-        inscrito = ja_inscrito is not None
+        ).first() is not None
+
+        if not inscrito:
+            fila = session.exec(
+                select(Espera)
+                .where(Espera.evento_id == evento.id)
+                .order_by(Espera.criado_em.asc())
+            ).all()
+            for pos, item in enumerate(fila, start=1):
+                if item.usuario_id == usuario.id:
+                    posicao_espera = pos
+                    break
 
     return EventoPublic(
         **evento.model_dump(),
         total_inscritos=total or 0,
         inscrito=inscrito,
+        posicao_espera=posicao_espera,
+        total_espera=total_espera or 0,
+        nota_media=round(avg_nota, 1) if avg_nota else None,
+        total_avaliacoes=total_aval or 0,
     )
 
 
@@ -230,7 +261,28 @@ async def inscrever_em_evento(
             select(func.count(Inscricao.id)).where(Inscricao.evento_id == evento_id)
         ).one()
         if total >= evento.vagas:
-            raise HTTPException(status_code=409, detail="Vagas esgotadas para este evento")
+            # Vagas esgotadas → lista de espera
+            ja_espera = session.exec(
+                select(Espera).where(
+                    Espera.evento_id == evento_id,
+                    Espera.usuario_id == usuario.id,
+                )
+            ).first()
+            if ja_espera:
+                raise HTTPException(status_code=409, detail="Você já está na lista de espera")
+
+            fila = session.exec(
+                select(func.count(Espera.id)).where(Espera.evento_id == evento_id)
+            ).one()
+            nova_espera = Espera(usuario_id=usuario.id, evento_id=evento_id)
+            session.add(nova_espera)
+            session.commit()
+            return {
+                "mensagem": f"Vagas esgotadas. Você entrou na lista de espera, posição #{fila + 1}",
+                "lista_espera": True,
+                "posicao": fila + 1,
+                "evento_id": evento_id,
+            }
 
     nova = Inscricao(usuario_id=usuario.id, evento_id=evento_id)
     session.add(nova)
@@ -265,7 +317,45 @@ async def cancelar_inscricao(
     if evento:
         await email_inscricao_cancelada(usuario.email, usuario.nome, evento.titulo)
 
+        # Promove o primeiro da lista de espera
+        proximo = session.exec(
+            select(Espera)
+            .where(Espera.evento_id == evento_id)
+            .order_by(Espera.criado_em.asc())
+        ).first()
+        if proximo:
+            usuario_espera = session.get(Usuario, proximo.usuario_id)
+            session.delete(proximo)
+            nova = Inscricao(usuario_id=proximo.usuario_id, evento_id=evento_id)
+            session.add(nova)
+            session.commit()
+            if usuario_espera:
+                await email_vaga_disponivel(
+                    usuario_espera.email, usuario_espera.nome, evento.titulo, evento.local, evento.data
+                )
+
     return {"mensagem": "Inscrição cancelada"}
+
+
+@router.delete("/{evento_id}/espera")
+def sair_da_espera(
+    evento_id: int,
+    session: Session = Depends(get_session),
+    usuario: Usuario = Depends(usuario_atual),
+):
+    """Remove o usuário autenticado da lista de espera do evento."""
+    espera = session.exec(
+        select(Espera).where(
+            Espera.evento_id == evento_id,
+            Espera.usuario_id == usuario.id,
+        )
+    ).first()
+    if not espera:
+        raise HTTPException(status_code=404, detail="Você não está na lista de espera")
+
+    session.delete(espera)
+    session.commit()
+    return {"mensagem": "Removido da lista de espera"}
 
 
 # ──────────────────────────────────────────────
