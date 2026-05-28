@@ -1,26 +1,3 @@
-"""
-main.py
--------
-Ponto de entrada da API Conecta Bairro.
-
-Responsabilidades:
-1. Cria a instância FastAPI
-2. Configura CORS
-3. Registra todos os routers
-4. Cria as tabelas + admin padrão na inicialização
-5. Serve o frontend (HTML/CSS/JS) e os uploads em rotas estáticas
-
-Como rodar:
-    cd backend
-    uvicorn main:app --reload
-
-Em seguida abra http://localhost:8000
-
-Credenciais padrão do admin:
-    email: admin@conectabairro.com
-    senha: admin123
-"""
-
 import os
 import logging
 import json
