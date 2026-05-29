@@ -1531,3 +1531,73 @@ body.admin-body { background: var(--ink-50); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 .spin-icon { display: inline-block; animation: spin 0.8s linear infinite; }
+
+/* ---------- Toggle lista/mapa ---------- */
+.view-toggle {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+.view-toggle .btn-cb.is-active {
+    background: var(--brand-600);
+    color: #fff;
+    border-color: var(--brand-600);
+}
+
+/* ---------- Mapa Leaflet ---------- */
+#mapa-wrap {
+    padding: 0 1rem 1rem;
+}
+#mapa-container {
+    width: 100%;
+    height: 480px;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--ink-200);
+    z-index: 0;
+}
+.mapa-sem-coords {
+    text-align: center;
+    color: var(--ink-400);
+    padding: 1.5rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* Pins customizados */
+.map-pin {
+    width: 36px;
+    height: 36px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    border: 2px solid #fff;
+}
+.map-pin i {
+    transform: rotate(45deg);
+    color: #fff;
+    font-size: 0.85rem;
+}
+.map-pin--user {
+    background: #0f172a !important;
+}
+
+/* Popup do mapa */
+.map-popup { font-family: var(--font-sans); min-width: 200px; }
+.map-popup h4 { margin: 0.4rem 0 0.3rem; font-size: 0.95rem; color: var(--ink-900); }
+.map-popup p { margin: 0.2rem 0; font-size: 0.8rem; color: var(--ink-500); display: flex; align-items: center; gap: 0.3rem; }
+.map-popup-badge {
+    display: inline-block;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 999px;
+    padding: 1px 8px;
+    margin-bottom: 2px;
+}
+.map-popup-actions { margin-top: 0.6rem; }
+.leaflet-popup-content-wrapper { border-radius: 12px !important; box-shadow: 0 4px 20px rgba(0,0,0,.12) !important; }
+.leaflet-popup-tip { display: none; }
